@@ -1,136 +1,82 @@
-const statusSubtitle = typeof document !== 'undefined' ? document.getElementById('statusSubtitle') : null;
+const form = typeof document !== 'undefined' ? document.getElementById('activateForm') : null;
+const emailInput = typeof document !== 'undefined' ? document.getElementById('activationEmail') : null;
+const codeInput = typeof document !== 'undefined' ? document.getElementById('activationCode') : null;
+const codeError = typeof document !== 'undefined' ? document.getElementById('codeError') : null;
 const statusBox = typeof document !== 'undefined' ? document.getElementById('statusBox') : null;
-const actionArea = typeof document !== 'undefined' ? document.getElementById('actionArea') : null;
-const resendForm = typeof document !== 'undefined' ? document.getElementById('resendForm') : null;
-const resendEmail = typeof document !== 'undefined' ? document.getElementById('resendEmail') : null;
+const activateButton = typeof document !== 'undefined' ? document.getElementById('activateButton') : null;
 const resendButton = typeof document !== 'undefined' ? document.getElementById('resendButton') : null;
 
-function getTokenFromUrl() {
-  if (typeof window === 'undefined' || !window.location) return null;
-
-  // 1. Ưu tiên đọc từ hash (#token=...)
-  if (window.location.hash) {
-    const hash = window.location.hash.replace(/^#/, '');
-    const hashParams = new URLSearchParams(hash);
-    const tokenFromHash = hashParams.get('token');
-    if (tokenFromHash) return tokenFromHash;
-  }
-
-  // 2. Đọc từ query string (?token=...)
-  const queryParams = new URLSearchParams(window.location.search);
-  return queryParams.get('token');
+function initialEmail() {
+  if (typeof window === 'undefined') return '';
+  const queryEmail = new URLSearchParams(window.location.search).get('email');
+  return queryEmail || sessionStorage.getItem('activationEmail') || '';
 }
 
-function clearTokenFromAddressBar() {
-  if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
+function showStatus(message, type = 'error') {
+  statusBox.textContent = message;
+  statusBox.className = `message ${type}`;
+  statusBox.hidden = false;
 }
 
-function renderStatus({ type, message, showLogin = false, showResend = false }) {
-  if (statusSubtitle) {
-    statusSubtitle.textContent = type === 'success' ? 'Hoàn tất kích hoạt' : 'Trạng thái kích hoạt';
-  }
-
-  if (statusBox) {
-    statusBox.className = `message ${type}`;
-    statusBox.textContent = message;
-    statusBox.hidden = false;
-  }
-
-  if (actionArea) {
-    actionArea.innerHTML = '';
-    if (showLogin) {
-      const loginBtn = document.createElement('a');
-      loginBtn.href = '/login.html';
-      loginBtn.className = 'primary-btn';
-      loginBtn.style.textAlign = 'center';
-      loginBtn.style.textDecoration = 'none';
-      loginBtn.style.display = 'block';
-      loginBtn.textContent = 'Đăng nhập ngay';
-      actionArea.appendChild(loginBtn);
-    }
-  }
-
-  if (resendForm) {
-    resendForm.hidden = !showResend;
-  }
+if (emailInput) emailInput.value = initialEmail();
+if (codeInput) {
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    codeError.textContent = '';
+  });
 }
 
-async function performActivation() {
-  const token = getTokenFromUrl();
-  clearTokenFromAddressBar();
-
-  if (!token) {
-    renderStatus({
-      type: 'error',
-      message: 'Không tìm thấy mã kích hoạt trong đường dẫn.',
-      showResend: true,
-    });
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/auth/activate', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
-
-    const result = await response.json();
-
-    if (response.status === 200) {
-      renderStatus({
-        type: 'success',
-        message: result.message || 'Tài khoản đã được kích hoạt thành công.',
-        showLogin: true,
-      });
-      return;
-    }
-
-    if (response.status === 409) {
-      renderStatus({
-        type: 'error',
-        message: result.message || 'Liên kết đã được sử dụng.',
-        showLogin: true,
-      });
-      return;
-    }
-
-    if (response.status === 410) {
-      renderStatus({
-        type: 'error',
-        message: result.message || 'Liên kết đã hết hạn.',
-        showResend: true,
-      });
-      return;
-    }
-
-    renderStatus({
-      type: 'error',
-      message: result.message || 'Mã kích hoạt không hợp lệ.',
-      showResend: true,
-    });
-  } catch {
-    renderStatus({
-      type: 'error',
-      message: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
-      showResend: true,
-    });
-  }
-}
-
-if (resendForm) {
-  resendForm.addEventListener('submit', async (event) => {
+if (form) {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const email = resendEmail ? resendEmail.value.trim() : '';
+    const email = emailInput.value.trim().toLowerCase();
+    const code = codeInput.value.trim();
+    statusBox.hidden = true;
 
-    if (!email) return;
+    if (!email) {
+      showStatus('Vui lòng nhập email.');
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      codeError.textContent = 'Mã xác nhận phải gồm đúng 6 chữ số.';
+      return;
+    }
 
+    activateButton.disabled = true;
+    activateButton.textContent = 'Đang xác nhận...';
+    try {
+      const response = await fetch('/api/auth/activate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        showStatus(result.message || 'Không thể xác nhận tài khoản.');
+        return;
+      }
+      sessionStorage.removeItem('activationEmail');
+      showStatus('Xác nhận thành công. Đang chuyển đến trang đăng nhập...', 'success');
+      setTimeout(() => window.location.assign('/login.html?activated=1'), 1000);
+    } catch {
+      showStatus('Không thể kết nối máy chủ. Vui lòng thử lại.');
+    } finally {
+      activateButton.disabled = false;
+      activateButton.textContent = 'Xác nhận';
+    }
+  });
+}
+
+if (resendButton) {
+  resendButton.addEventListener('click', async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email) {
+      showStatus('Vui lòng nhập email trước khi gửi lại mã.');
+      return;
+    }
     resendButton.disabled = true;
     resendButton.textContent = 'Đang gửi...';
-
     try {
       const response = await fetch('/api/auth/resend-activation', {
         method: 'POST',
@@ -138,27 +84,17 @@ if (resendForm) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-
       const result = await response.json();
-      renderStatus({
-        type: 'success',
-        message: result.message || 'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.',
-        showResend: false,
-        showLogin: true,
-      });
+      showStatus(result.message || 'Nếu tài khoản hợp lệ, mã mới đã được gửi.', 'success');
     } catch {
-      renderStatus({
-        type: 'error',
-        message: 'Không thể gửi lại email lúc này. Vui lòng thử lại sau.',
-        showResend: true,
-      });
+      showStatus('Không thể gửi lại mã lúc này. Vui lòng thử lại sau.');
     } finally {
       resendButton.disabled = false;
-      resendButton.textContent = 'Gửi lại email kích hoạt';
+      resendButton.textContent = 'Gửi lại mã';
     }
   });
 }
 
-if (typeof window !== 'undefined') {
-  performActivation();
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { initialEmail };
 }

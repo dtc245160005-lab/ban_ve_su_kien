@@ -7,7 +7,6 @@ const fullNameError = typeof document !== 'undefined' ? document.getElementById(
 const emailError = typeof document !== 'undefined' ? document.getElementById('emailError') : null;
 const passwordError = typeof document !== 'undefined' ? document.getElementById('passwordError') : null;
 const messageBox = typeof document !== 'undefined' ? document.getElementById('messageBox') : null;
-const successBox = typeof document !== 'undefined' ? document.getElementById('successBox') : null;
 const submitButton = typeof document !== 'undefined' ? document.getElementById('submitButton') : null;
 
 function clearErrors() {
@@ -71,12 +70,8 @@ if (form) {
       }
 
       if (response.status === 202) {
-        form.hidden = true;
-        if (successBox) {
-          successBox.textContent =
-            result.message || 'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.';
-          successBox.hidden = false;
-        }
+        sessionStorage.setItem('activationEmail', email.toLowerCase());
+        window.location.assign(`/activate.html?email=${encodeURIComponent(email.toLowerCase())}`);
         return;
       }
 

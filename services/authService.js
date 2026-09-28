@@ -99,7 +99,7 @@ function createAuthService({
           success: false,
           code: 'ACCOUNT_NOT_ACTIVE',
           message:
-            'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email hoặc gửi lại liên kết kích hoạt.',
+            'Tài khoản chưa được kích hoạt. Vui lòng nhập mã xác nhận đã gửi đến email hoặc yêu cầu mã mới.',
         },
       };
     }

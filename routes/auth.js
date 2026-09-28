@@ -14,9 +14,9 @@ const { logEvent } = require('../lib/logger');
 const { createAuthenticateMiddleware, getSessionToken } = require('../middleware/authenticate');
 
 const GENERIC_REGISTER_MESSAGE =
-  'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.';
+  'Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư.';
 const GENERIC_RESEND_MESSAGE =
-  'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.';
+  'Nếu email hợp lệ và chưa xác nhận, mã xác nhận mới sẽ được gửi đến hộp thư.';
 
 function createAuthRouter(customDependencies = {}) {
   const router = express.Router();
@@ -153,7 +153,7 @@ function createAuthRouter(customDependencies = {}) {
       }
 
       const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-      const tokenObj = activationService.createActivationToken();
+      const tokenObj = activationService.createActivationCode(email);
 
       let createdUser = null;
       try {
@@ -204,11 +204,10 @@ function createAuthRouter(customDependencies = {}) {
 
       // Chỉ gửi email sau khi transaction đã commit thành công
       try {
-        const activationUrl = activationService.buildActivationUrl(tokenObj.rawToken);
-        await emailService.sendActivationEmail({
+        await emailService.sendActivationCode({
           to: createdUser.email,
           fullName,
-          activationUrl,
+          activationCode: tokenObj.rawCode,
         });
       } catch {
         logEvent('mail_failed', { userId: createdUser.id, status: 500 });
@@ -231,8 +230,9 @@ function createAuthRouter(customDependencies = {}) {
   // 5. POST /api/auth/activate
   secure(router, 'post', '/activate', 'public', async (req, res) => {
     try {
-      const token = req.body?.token;
-      const result = await activationService.activate(token);
+      const result = req.body?.code !== undefined
+        ? await activationService.activateCode(req.body?.email, req.body.code)
+        : await activationService.activate(req.body?.token);
 
       if (result.status === 200) {
         logEvent('activation_succeeded', { userId: result.userId, req, status: 200 });
@@ -285,11 +285,10 @@ function createAuthRouter(customDependencies = {}) {
 
       if (resendData && resendData.user && resendData.tokenObj) {
         try {
-          const activationUrl = activationService.buildActivationUrl(resendData.tokenObj.rawToken);
-          await emailService.sendActivationEmail({
+          await emailService.sendActivationCode({
             to: resendData.user.email,
             fullName: resendData.user.full_name,
-            activationUrl,
+            activationCode: resendData.tokenObj.rawCode,
           });
         } catch {
           logEvent('mail_failed', { userId: resendData.user.id, status: 500 });
