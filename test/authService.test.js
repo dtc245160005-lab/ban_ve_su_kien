@@ -8,9 +8,9 @@ const testPrefix = `bvsk-test:${process.pid}:`;
 process.env.REDIS_KEY_PREFIX = testPrefix;
 process.env.TRUST_PROXY = 'false';
 
-const app = require('../index');
+const { start } = require('../index');
 const db = require('../db');
-const { getRedis, redisClient } = require('../lib/redis');
+const { redisClient } = require('../lib/redis');
 const {
   createAuthService,
   GENERIC_LOGIN_ERROR,
@@ -47,18 +47,10 @@ describe('T-05 Authentication Hardening & Endpoints', () => {
   const bruteForceUserEmail = 'brute_force_user@example.test';
 
   before(async () => {
-    // 1. Kết nối Redis bằng getRedis()
-    await getRedis();
-
-    // 2. Khởi động HTTP server
-    await new Promise((resolve) => {
-      server = http.createServer(app);
-      server.listen(0, '127.0.0.1', () => {
-        const address = server.address();
-        baseUrl = `http://127.0.0.1:${address.port}`;
-        resolve();
-      });
-    });
+    // 1. Khởi động server thông qua start({ port: 0 })
+    server = await start({ port: 0 });
+    const address = server.address();
+    baseUrl = `http://127.0.0.1:${address.port}`;
 
     // 3. Đảm bảo các roles tồn tại
     const rolesToEnsure = ['buyer', 'organizer', 'admin'];

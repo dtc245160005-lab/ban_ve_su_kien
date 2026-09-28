@@ -1,83 +1,85 @@
 require('dotenv').config();
-const path = require('path');
-const express = require('express');
 const db = require('./db');
-const { getRedis } = require('./lib/redis');
-const authRouter = require('./routes/auth');
+const { getRedis, closeRedis } = require('./lib/redis');
+const createApp = require('./app');
 
-const app = express();
-const port = process.env.PORT || 8090;
+async function start(options = {}) {
+  const port = options.port !== undefined ? options.port : (process.env.PORT || 8090);
+  let redis = null;
 
-// Cấu hình trust proxy theo biến môi trường TRUST_PROXY (mặc định: false)
-const trustProxyEnv = process.env.TRUST_PROXY;
-let trustProxy = false;
-if (trustProxyEnv === 'true') {
-  trustProxy = true;
-} else if (trustProxyEnv && !Number.isNaN(Number(trustProxyEnv))) {
-  trustProxy = Number(trustProxyEnv);
-} else if (trustProxyEnv && trustProxyEnv !== 'false') {
-  trustProxy = trustProxyEnv;
+  // 1. Kiểm tra kết nối cơ sở dữ liệu
+  try {
+    await db.raw('SELECT 1');
+    console.log('✅ Đã kết nối cơ sở dữ liệu thành công!');
+  } catch (err) {
+    console.error('❌ Khởi động thất bại: Không thể kết nối cơ sở dữ liệu.');
+    throw new Error('Database connection failed', { cause: err });
+  }
+
+  // 2. Kết nối và kiểm tra Redis
+  try {
+    redis = await getRedis(options.redisUrl);
+    const pong = await redis.ping();
+    if (pong !== 'PONG') {
+      throw new Error('Redis ping response invalid');
+    }
+    console.log('✅ Đã kết nối Redis thành công!');
+  } catch (err) {
+    console.error('❌ Khởi động thất bại: Không thể kết nối Redis.');
+    if (redis && redis.isOpen) {
+      await closeRedis();
+    }
+    throw new Error('Redis connection failed', { cause: err });
+  }
+
+  // 3. Khởi tạo Express app và bắt đầu lắng nghe
+  const app = options.app || createApp(options);
+  const server = await new Promise((resolve, reject) => {
+    const s = app.listen(port, () => {
+      const address = s.address();
+      const actualPort = typeof address === 'object' && address ? address.port : port;
+      console.log(`Server API đang chạy tại http://localhost:${actualPort}`);
+      resolve(s);
+    });
+    s.once('error', reject);
+  });
+
+  return server;
 }
-app.set('trust proxy', trustProxy);
-
-// Middleware để đọc dữ liệu dạng JSON từ client gửi lên
-app.use(express.json({ limit: '20kb' }));
-
-// Phục vụ tài nguyên tĩnh trong thư mục public
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Chuyển hướng trang chủ sang giao diện đăng nhập
-app.get('/', (_req, res) => {
-  res.redirect('/login.html');
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Routes xác thực
-app.use('/api/auth', authRouter);
-
-// API 1: Lấy danh sách sự kiện
-app.get('/api/events', async (req, res) => {
-  try {
-    const events = await db('events').select('*');
-    res.status(200).json({ success: true, data: events });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// API 2: Thêm mới một sự kiện
-app.post('/api/events', async (req, res) => {
-  try {
-    const { title, description, price, total_tickets } = req.body;
-    const [newEvent] = await db('events')
-      .insert({ title, description, price, total_tickets })
-      .returning('*');
-    res.status(201).json({ success: true, data: newEvent });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
 
 if (require.main === module) {
-  app.listen(port, async () => {
-    console.log(`Server API đang chạy tại http://localhost:${port}`);
-    try {
-      await db.raw('SELECT 1');
-      console.log('✅ Đã kết nối PostgreSQL thành công!');
-    } catch (err) {
-      console.error('❌ Lỗi kết nối PostgreSQL:', err.message);
-    }
-    try {
-      await getRedis();
-      console.log('✅ Đã kết nối Redis thành công!');
-    } catch (err) {
-      console.error('❌ Lỗi kết nối Redis:', err.message);
-    }
-  });
+  start()
+    .then((server) => {
+      const shutdown = async (signal) => {
+        console.log(`\nNhận tín hiệu ${signal}, đang tiến hành tắt máy chủ...`);
+        try {
+          await new Promise((resolve) => server.close(resolve));
+          console.log('Đã đóng HTTP server.');
+        } catch (err) {
+          console.error('Lỗi khi đóng HTTP server:', err.message);
+        }
+        try {
+          await closeRedis();
+          console.log('Đã ngắt kết nối Redis.');
+        } catch (err) {
+          console.error('Lỗi khi ngắt kết nối Redis:', err.message);
+        }
+        try {
+          await db.destroy();
+          console.log('Đã đóng kết nối cơ sở dữ liệu.');
+        } catch (err) {
+          console.error('Lỗi khi đóng kết nối Knex:', err.message);
+        }
+        process.exit(0);
+      };
+
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
+    })
+    .catch((_err) => {
+      console.error('Khởi động ứng dụng thất bại.');
+      process.exit(1);
+    });
 }
 
-module.exports = app;
+module.exports = Object.assign(start, { start });
