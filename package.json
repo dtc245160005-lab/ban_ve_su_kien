@@ -8,7 +8,8 @@
     "migrate:latest": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "seed:run": "knex seed:run",
-    "test:t04": "node test_t04.js"
+    "test:t04": "node test_t04.js",
+    "test:t31": "node test_t31.js"
   },
   "keywords": [],
   "author": "",

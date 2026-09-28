@@ -65,19 +65,24 @@ require('dotenv').config();
             expiresAt = new Date(now.getTime() + HOLD_MINUTES * 60000);
           }
 
-          // Kiểm tra xem ghế đã bị user khác giữ hay chưa
+          // Kiểm tra TẦNG ỨNG DỤNG: lấy trước danh sách ghế trùng để báo lỗi đầy đủ (UX tốt)
           const conflictingHolds = await trx('seat_holds')
             .whereIn('seat_id', seat_ids)
             .andWhere('expires_at', '>', now)
             .andWhere('user_id', '!=', user_id);
 
           if (conflictingHolds.length > 0) {
-            throw new Error('Ghế vừa có người chọn');
+            const rejectedSeats = conflictingHolds.map(h => h.seat_id);
+            const err = new Error('Ghế vừa có người chọn');
+            err.rejected_seats = rejectedSeats;
+            throw err;
           }
 
-          // Xóa giữ chỗ cũ (nếu có) của user hiện tại với những ghế này để tránh lỗi unique constraint
+          // Xóa các bản ghi đã hết hạn của chính các ghế này (nếu có) để dọn dẹp
+          // Không xóa của người khác nếu đang còn hạn (DB Trigger sẽ chặn)
           await trx('seat_holds')
             .whereIn('seat_id', seat_ids)
+            .andWhere('expires_at', '<=', now)
             .del();
 
           const newHolds = seat_ids.map(seat_id => ({
@@ -93,11 +98,20 @@ require('dotenv').config();
 
         res.status(200).json({ success: true, data: result });
       } catch (err) {
+        // T-30: Xử lý lỗi từ tầng ứng dụng
         if (err.message === 'Ghế vừa có người chọn') {
-          res.status(409).json({ success: false, message: err.message });
-        } else {
-          res.status(500).json({ success: false, message: err.message });
+          console.log(`[Tranh chấp giữ chỗ - App] Các ghế bị từ chối: ${err.rejected_seats.join(', ')}`);
+          return res.status(409).json({ success: false, message: err.message, rejected_seats: err.rejected_seats });
         }
+        
+        // T-30: Xử lý lỗi từ tầng CƠ SỞ DỮ LIỆU (Trigger quăng ra trong trường hợp race condition)
+        if (err.message && err.message.includes('seat_already_held_active:')) {
+          const seat_id = err.message.split('seat_already_held_active:')[1].split('"')[0].trim();
+          console.log(`[Tranh chấp giữ chỗ - DB] Ghế bị từ chối do race condition: ${seat_id}`);
+          return res.status(409).json({ success: false, message: 'Ghế vừa có người chọn', rejected_seats: [seat_id] });
+        }
+
+        res.status(500).json({ success: false, message: err.message });
       }
     });
 
