@@ -121,9 +121,35 @@ function createEmailService(options = {}) {
     return sendMail({ to, subject, text, html });
   }
 
+  async function sendActivationCode({ to, fullName, activationCode }) {
+    const displayName = fullName || 'Quý khách';
+    const safeName = escapeHtml(displayName);
+    const safeCode = escapeHtml(activationCode);
+    const subject = 'Mã xác nhận tài khoản bán vé sự kiện';
+    const text = [
+      `Xin chào ${displayName},`,
+      '',
+      `Mã xác nhận tài khoản của bạn là: ${activationCode}`,
+      '',
+      'Mã này có hiệu lực trong 10 phút và chỉ sử dụng được một lần.',
+      'Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.',
+    ].join('\n');
+    const html = `
+      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+        <h2>Xin chào ${safeName},</h2>
+        <p>Dùng mã sau để xác nhận tài khoản của bạn:</p>
+        <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #2563eb;">${safeCode}</p>
+        <p>Mã này có hiệu lực trong 10 phút và chỉ sử dụng được một lần.</p>
+        <p style="color: #666; font-size: 0.9em;">Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>
+      </div>
+    `;
+    return sendMail({ to, subject, text, html });
+  }
+
   return {
     sendMail,
     sendActivationEmail,
+    sendActivationCode,
     assertConfiguration,
     escapeHtml,
   };

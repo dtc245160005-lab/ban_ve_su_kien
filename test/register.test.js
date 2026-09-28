@@ -109,7 +109,7 @@ describe('T-07 User Registration Tests', () => {
     assert.strictEqual(body.success, true);
     assert.strictEqual(
       body.message,
-      'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.'
+      'Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư.'
     );
 
     // Kiểm tra DB
@@ -139,7 +139,7 @@ describe('T-07 User Registration Tests', () => {
     const joinedLogs = logs.join('\n');
     assert.ok(joinedLogs.includes('[DEV MAIL]'));
     assert.ok(joinedLogs.includes(testEmail));
-    assert.ok(joinedLogs.includes('/activate.html#token='));
+    assert.match(joinedLogs, /Mã xác nhận tài khoản của bạn là: \d{6}/);
   });
 
   test('4. Đăng ký email đã tồn tại: mã HTTP và body GIỐNG HỆT trường hợp email mới; số user không đổi; không có [DEV MAIL]', async () => {
@@ -191,7 +191,7 @@ describe('T-07 User Registration Tests', () => {
     assert.strictEqual(body.success, true);
     assert.strictEqual(
       body.message,
-      'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.'
+      'Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư.'
     );
 
     // Không có [DEV MAIL] cho lần đăng ký trùng

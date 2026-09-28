@@ -104,6 +104,13 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+.field-group .otp-input {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 10px;
+}
+
 .primary-btn,
 .secondary-btn {
   width: 100%;

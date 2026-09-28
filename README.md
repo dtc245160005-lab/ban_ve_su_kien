@@ -64,6 +64,8 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | `DEMO_ORGANIZER_EMAIL` | Email tài khoản demo Organizer | `organizer@example.com` |
 | `DEMO_ORGANIZER_PASSWORD` | Mật khẩu tài khoản demo Organizer | `Organizer@123456` |
 | `APP_BASE_URL` | Địa chỉ gốc của ứng dụng web | `http://localhost:8090` |
+| `ACTIVATION_CODE_TTL_SECONDS` | Thời gian hiệu lực của mã xác nhận 6 số | `600` |
+| `ACTIVATION_CODE_MAX_ATTEMPTS` | Số lần nhập sai tối đa trước khi phải yêu cầu mã mới | `5` |
 | `MAIL_TRANSPORT` | Phương thức gửi email (`dev` hoặc `smtp`) | `dev` |
 | `SMTP_HOST` | Địa chỉ máy chủ SMTP (khi dùng `smtp`) | `smtp.example.com` |
 | `SMTP_PORT` | Cổng SMTP | `587` |
@@ -193,7 +195,7 @@ npm run backup
   - Nhận `email`, `password`, `full_name`. Kiểm tra định dạng dữ liệu đầu vào.
   - Tạo tài khoản với vai trò mặc định `buyer` và trạng thái `is_active = false`.
   - Sinh mã kích hoạt ngẫu nhiên 32 bytes (base64url), lưu hash SHA-256 vào bảng `email_activation_tokens` với thời hạn 24 giờ.
-  - **Chống lộ thông tin:** Luôn trả về HTTP 202 cùng thông báo chung `"Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư."` bất kể email mới hay đã tồn tại (đồng thời chạy dummy hash để cân bằng thời gian phản hồi).
+  - **Chống lộ thông tin:** Luôn trả về HTTP 202 cùng thông báo chung `"Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư."` bất kể email mới hay đã tồn tại (đồng thời chạy dummy hash để cân bằng thời gian phản hồi).
   - **Xử lý đồng thời:** Xử lý race condition an toàn qua ràng buộc unique, trả về 202 và không gây lỗi 500 khi có nhiều request đăng ký cùng lúc.
 - **Kích hoạt tài khoản (`POST /api/auth/activate`):**
   - Trang `public/activate.html` đọc token từ URL (`#token=...` hoặc `?token=...`), tự động xóa token khỏi thanh địa chỉ và gọi API `POST /api/auth/activate`.
@@ -204,6 +206,6 @@ npm run backup
   - Vô hiệu hoá các token cũ còn hạn của người dùng trước khi sinh token mới.
   - Luôn trả về HTTP 202 với thông báo chung.
 - **Dịch vụ Email (`services/emailService.js`):**
-  - Môi trường dev/test: In nội dung email kèm liên kết kích hoạt ra console dạng khối `[DEV MAIL]`.
+  - Môi trường dev/test: In nội dung email kèm mã xác nhận 6 số ra console dạng khối `[DEV MAIL]`.
   - Môi trường production: Gửi email thực qua giao thức SMTP sử dụng `nodemailer`. Kiểm tra cấu hình bắt buộc khi ứng dụng khởi động.
 
