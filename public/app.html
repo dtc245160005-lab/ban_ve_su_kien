@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trang chính</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="page-title">
+        <div class="brand-block">
+          <div class="brand-icon" aria-hidden="true">A</div>
+          <h1 id="page-title">Đăng nhập thành công</h1>
+          <p id="userSummary">Đang kiểm tra phiên đăng nhập...</p>
+        </div>
+
+        <button id="logoutButton" class="secondary-btn" type="button">Đăng xuất</button>
+      </section>
+    </main>
+
+    <script>
+      const summary = document.getElementById('userSummary');
+      const logoutButton = document.getElementById('logoutButton');
+
+      async function loadSession() {
+        const response = await fetch('/api/auth/session', { credentials: 'same-origin' });
+        if (!response.ok) {
+          window.location.replace('/login.html');
+          return;
+        }
+
+        const result = await response.json();
+        summary.textContent = `Tài khoản: ${result.user.email}`;
+      }
+
+      logoutButton.addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+        window.location.replace('/login.html');
+      });
+
+      loadSession().catch(() => window.location.replace('/login.html'));
+    </script>
+  </body>
+</html>

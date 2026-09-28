@@ -1,17 +1,31 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const db = require('./db');
+const redisClient = require('./lib/redis');
+const authRouter = require('./routes/auth');
 
 const app = express();
 const port = process.env.PORT || 8090;
 
 // Middleware để đọc dữ liệu dạng JSON từ client gửi lên
-app.use(express.json());
+app.use(express.json({ limit: '20kb' }));
+
+// Phục vụ tài nguyên tĩnh trong thư mục public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Chuyển hướng trang chủ sang giao diện đăng nhập
+app.get('/', (_req, res) => {
+  res.redirect('/login.html');
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Routes xác thực
+app.use('/api/auth', authRouter);
 
 // API 1: Lấy danh sách sự kiện
 app.get('/api/events', async (req, res) => {
@@ -44,6 +58,14 @@ if (require.main === module) {
       console.log('✅ Đã kết nối PostgreSQL thành công!');
     } catch (err) {
       console.error('❌ Lỗi kết nối PostgreSQL:', err.message);
+    }
+    try {
+      if (!redisClient.isOpen) {
+        await redisClient.connect();
+      }
+      console.log('✅ Đã kết nối Redis thành công!');
+    } catch (err) {
+      console.error('❌ Lỗi kết nối Redis:', err.message);
     }
   });
 }
