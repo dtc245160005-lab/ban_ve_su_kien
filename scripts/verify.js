@@ -63,6 +63,7 @@ async function main() {
   const verifyEnv = {
     ...process.env,
     DB_CONNECTION_STRING: tempDbConnectionString,
+    REDIS_KEY_PREFIX: `bvsk-verify:${timestamp}:`,
     DEMO_ADMIN_EMAIL: process.env.DEMO_ADMIN_EMAIL || 'admin@example.com',
     DEMO_ADMIN_PASSWORD: process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmin@123456',
     DEMO_ORGANIZER_EMAIL: process.env.DEMO_ORGANIZER_EMAIL || 'organizer@example.com',
@@ -161,6 +162,25 @@ async function main() {
     }
     if (adminClient) {
       await adminClient.end().catch(() => {});
+    }
+
+    try {
+      const { createClient } = require('redis');
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      const cleanupRedis = createClient({ url: redisUrl });
+      await cleanupRedis.connect();
+      const verifyPrefix = `bvsk-verify:${timestamp}:`;
+      let cursor = 0;
+      do {
+        const reply = await cleanupRedis.scan(cursor, { MATCH: `${verifyPrefix}*`, COUNT: 100 });
+        cursor = reply.cursor;
+        if (reply.keys.length > 0) {
+          await cleanupRedis.del(reply.keys);
+        }
+      } while (cursor !== 0);
+      await cleanupRedis.quit();
+    } catch {
+      // Bỏ qua lỗi cleanup redis nếu có
     }
   }
 

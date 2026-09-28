@@ -1,6 +1,6 @@
 const express = require('express');
 const { parseCookies } = require('../lib/cookies');
-const redisClient = require('../lib/redis');
+const { redisClient } = require('../lib/redis');
 const db = require('../db');
 const { createUserRepository } = require('../services/userRepository');
 const { createRedisAuthStore } = require('../services/redisAuthStore');
@@ -36,21 +36,9 @@ function createAuthRouter(customDependencies = {}) {
       sessionStore,
     });
 
-  async function ensureRedis() {
-    const client = customDependencies.redisClient || redisClient;
-    if (client && !client.isOpen && typeof client.connect === 'function') {
-      await client.connect();
-    }
-  }
-
   router.post('/login', async (req, res) => {
     try {
-      await ensureRedis();
-      const clientIp =
-        req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-        req.socket?.remoteAddress ||
-        req.ip ||
-        '127.0.0.1';
+      const clientIp = req.ip || '127.0.0.1';
 
       const result = await authService.login({
         email: req.body?.email,
@@ -84,7 +72,6 @@ function createAuthRouter(customDependencies = {}) {
 
   router.get('/session', async (req, res) => {
     try {
-      await ensureRedis();
       const cookies = parseCookies(req.headers.cookie);
       const token = cookies[cookieName];
 
@@ -115,7 +102,6 @@ function createAuthRouter(customDependencies = {}) {
 
   router.post('/logout', async (req, res) => {
     try {
-      await ensureRedis();
       const cookies = parseCookies(req.headers.cookie);
       const token = cookies[cookieName];
 

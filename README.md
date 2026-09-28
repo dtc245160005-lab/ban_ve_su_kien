@@ -47,11 +47,13 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | Tên biến | Mô tả | Ví dụ |
 | :--- | :--- | :--- |
 | `PORT` | Cổng chạy của Express server | `8090` |
+| `TRUST_PROXY` | Cấu hình trust proxy cho Express (`false`, `true`, hoặc số hop) | `false` |
 | `DB_CONNECTION_STRING` | Chuỗi kết nối PostgreSQL | `postgresql://postgres:password@localhost:5432/ban_ve_su_kien` |
 | `POSTGRES_USER` | Tên người dùng CSDL | `postgres` |
 | `POSTGRES_PASSWORD` | Mật khẩu người dùng CSDL | `secret` |
 | `POSTGRES_DB` | Tên cơ sở dữ liệu | `ban_ve_su_kien` |
 | `REDIS_URL` | URL kết nối Redis | `redis://localhost:6379` |
+| `REDIS_KEY_PREFIX` | Tiền tố cho mọi key lưu trong Redis | `bvsk:` |
 | `LOGIN_MAX_FAILED_ATTEMPTS` | Số lần đăng nhập sai tối đa theo email trước khi khoá | `5` |
 | `LOGIN_MAX_IP_FAILED_ATTEMPTS` | Số lần đăng nhập sai tối đa theo IP trước khi khoá | `20` |
 | `LOGIN_LOCK_SECONDS` | Thời gian khoá đăng nhập (giây) | `900` |
