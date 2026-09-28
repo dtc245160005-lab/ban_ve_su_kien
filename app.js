@@ -2,13 +2,24 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const defaultDb = require('./db');
-const { getRedis: defaultGetRedis } = require('./lib/redis');
+const { getRedis: defaultGetRedis, redisClient } = require('./lib/redis');
+const { createRedisAuthStore } = require('./services/redisAuthStore');
 const defaultAuthRouter = require('./routes/auth');
+const { secure, apiFallbackForbidden } = require('./middleware/routeRegistry');
 
 function createApp(options = {}) {
   const app = express();
   const db = options.db || defaultDb;
   const getRedis = options.getRedis || defaultGetRedis;
+
+  // Cấu hình sessionStore gắn vào app.locals để middleware dùng chung
+  if (options.sessionStore) {
+    app.locals.sessionStore = options.sessionStore;
+  } else if (options.redis) {
+    app.locals.sessionStore = createRedisAuthStore(options.redis).sessionStore;
+  } else {
+    app.locals.sessionStore = createRedisAuthStore(redisClient).sessionStore;
+  }
 
   // Cấu hình trust proxy theo biến môi trường TRUST_PROXY (mặc định: false)
   const trustProxyEnv = options.trustProxy !== undefined ? options.trustProxy : process.env.TRUST_PROXY;
@@ -34,7 +45,7 @@ function createApp(options = {}) {
   });
 
   // Health check endpoint (readiness check thực tế: ping DB và Redis)
-  app.get('/health', async (_req, res) => {
+  secure(app, 'get', '/health', 'public', async (_req, res) => {
     try {
       await db.raw('SELECT 1');
       const redis = options.redis || (await getRedis());
@@ -50,20 +61,29 @@ function createApp(options = {}) {
   });
 
   // Routes xác thực
-  app.use('/api/auth', options.authRouter || defaultAuthRouter);
+  const authRouter =
+    options.authRouter ||
+    defaultAuthRouter.createAuthRouter({
+      db,
+      redisClient: options.redis || redisClient,
+      sessionStore: app.locals.sessionStore,
+    });
+  authRouter._mountPrefix = '/api/auth';
+  app.use('/api/auth', authRouter);
 
-  // API 1: Lấy danh sách sự kiện
-  app.get('/api/events', async (_req, res) => {
+  // API 1: Lấy danh sách sự kiện (public)
+  secure(app, 'get', '/api/events', 'public', async (_req, res) => {
     try {
       const events = await db('events').select('*');
       res.status(200).json({ success: true, data: events });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+      console.error('Lỗi khi lấy danh sách sự kiện:', err.message);
+      res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
     }
   });
 
-  // API 2: Thêm mới một sự kiện
-  app.post('/api/events', async (req, res) => {
+  // API 2: Thêm mới một sự kiện (organizer, admin)
+  secure(app, 'post', '/api/events', { roles: ['organizer', 'admin'] }, async (req, res) => {
     try {
       const { title, description, price, total_tickets } = req.body;
       const [newEvent] = await db('events')
@@ -71,9 +91,13 @@ function createApp(options = {}) {
         .returning('*');
       res.status(201).json({ success: true, data: newEvent });
     } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+      console.error('Lỗi khi tạo sự kiện:', err.message);
+      res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
     }
   });
+
+  // Mặc định đóng: mọi request vào /api/* không khớp route nào đã khai báo thì trả 403
+  app.use('/api', apiFallbackForbidden);
 
   return app;
 }

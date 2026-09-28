@@ -11,9 +11,31 @@
       <section class="auth-card" aria-labelledby="page-title">
         <div class="brand-block">
           <div class="brand-icon" aria-hidden="true">A</div>
-          <h1 id="page-title">Đăng nhập thành công</h1>
+          <h1 id="page-title">Trang chính</h1>
           <p id="userSummary">Đang kiểm tra phiên đăng nhập...</p>
         </div>
+
+        <nav id="roleNavigation" class="menu-list" aria-label="Chức năng theo vai trò">
+          <!-- Quản lý sự kiện: chỉ hiện cho organizer và admin -->
+          <div id="eventManagementSection" class="menu-item" style="display: none;">
+            <a href="#events" class="menu-link" id="eventManagementLink">Quản lý sự kiện</a>
+          </div>
+
+          <!-- Đối soát: chỉ hiện cho accountant và admin -->
+          <div id="reconciliationSection" class="menu-item" style="display: none;">
+            <a href="#reconciliation" class="menu-link" id="reconciliationLink">Đối soát</a>
+          </div>
+
+          <!-- Soát vé: checker và admin -->
+          <div id="ticketCheckSection" class="menu-item" style="display: none;">
+            <a href="#checkin" class="menu-link" id="ticketCheckLink">Soát vé</a>
+          </div>
+
+          <!-- Vé của tôi: buyer -->
+          <div id="buyerSection" class="menu-item" style="display: none;">
+            <a href="#tickets" class="menu-link" id="buyerLink">Vé của tôi</a>
+          </div>
+        </nav>
 
         <button id="logoutButton" class="secondary-btn" type="button">Đăng xuất</button>
       </section>
@@ -23,6 +45,10 @@
     <script>
       const summary = document.getElementById('userSummary');
       const logoutButton = document.getElementById('logoutButton');
+      const eventManagementSection = document.getElementById('eventManagementSection');
+      const reconciliationSection = document.getElementById('reconciliationSection');
+      const ticketCheckSection = document.getElementById('ticketCheckSection');
+      const buyerSection = document.getElementById('buyerSection');
 
       async function loadSession() {
         const response = await apiFetch('/api/auth/session');
@@ -31,7 +57,33 @@
         }
 
         const result = await response.json();
-        summary.textContent = `Tài khoản: ${result.user.email}`;
+        const user = result.user || {};
+        const roles = Array.isArray(user.roles) ? user.roles : [];
+
+        summary.textContent = `Tài khoản: ${user.email || user.userId || ''} (Vai trò: ${roles.join(', ') || 'Chưa có'})`;
+
+        // 1. Quản lý sự kiện: hiện cho organizer và admin
+        const canManageEvents = roles.includes('organizer') || roles.includes('admin');
+        if (eventManagementSection) {
+          eventManagementSection.style.display = canManageEvents ? 'block' : 'none';
+        }
+
+        // 2. Đối soát: hiện cho accountant và admin
+        const canReconcile = roles.includes('accountant') || roles.includes('admin');
+        if (reconciliationSection) {
+          reconciliationSection.style.display = canReconcile ? 'block' : 'none';
+        }
+
+        // 3. Các mục khác ẩn/hiện theo roles
+        const canCheckTickets = roles.includes('checker') || roles.includes('admin');
+        if (ticketCheckSection) {
+          ticketCheckSection.style.display = canCheckTickets ? 'block' : 'none';
+        }
+
+        const isBuyer = roles.includes('buyer');
+        if (buyerSection) {
+          buyerSection.style.display = isBuyer ? 'block' : 'none';
+        }
       }
 
       logoutButton.addEventListener('click', async () => {

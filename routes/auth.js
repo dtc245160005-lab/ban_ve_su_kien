@@ -5,6 +5,7 @@ const db = require('../db');
 const { createUserRepository } = require('../services/userRepository');
 const { createRedisAuthStore } = require('../services/redisAuthStore');
 const { createAuthService } = require('../services/authService');
+const { secure } = require('../middleware/routeRegistry');
 
 function createAuthRouter(customDependencies = {}) {
   const router = express.Router();
@@ -36,7 +37,7 @@ function createAuthRouter(customDependencies = {}) {
       sessionStore,
     });
 
-  router.post('/login', async (req, res) => {
+  secure(router, 'post', '/login', 'public', async (req, res) => {
     try {
       const clientIp = req.ip || '127.0.0.1';
 
@@ -70,7 +71,7 @@ function createAuthRouter(customDependencies = {}) {
     }
   });
 
-  router.get('/session', async (req, res) => {
+  secure(router, 'get', '/session', 'public', async (req, res) => {
     try {
       const cookies = parseCookies(req.headers.cookie);
       const token = cookies[cookieName];
@@ -100,7 +101,7 @@ function createAuthRouter(customDependencies = {}) {
     }
   });
 
-  router.post('/logout', async (req, res) => {
+  secure(router, 'post', '/logout', 'public', async (req, res) => {
     try {
       const cookies = parseCookies(req.headers.cookie);
       const token = cookies[cookieName];
