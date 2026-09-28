@@ -179,6 +179,7 @@ function createAuthRouter(customDependencies = {}) {
 
           await trx('email_activation_tokens').insert({
             user_id: user.id,
+            purpose: 'register',
             token_hash: tokenObj.tokenHash,
             expires_at: tokenObj.expiresAt,
           });

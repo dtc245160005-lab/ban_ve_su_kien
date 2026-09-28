@@ -118,9 +118,9 @@ function createActivationService({ db = defaultDb } = {}) {
         return null;
       }
 
-      // Chốt chặn DB: đếm số token của user đó có created_at > now() - interval '1 hour'
+      // Chốt chặn DB: đếm số token của user đó có purpose='resend' và created_at > now() - interval '1 hour'
       const countResult = await trx('email_activation_tokens')
-        .where({ user_id: user.id })
+        .where({ user_id: user.id, purpose: 'resend' })
         .whereRaw("created_at > (now() - interval '1 hour')")
         .count('* as count')
         .first();
@@ -137,10 +137,11 @@ function createActivationService({ db = defaultDb } = {}) {
         .whereNull('used_at')
         .update({ used_at: trx.fn.now() });
 
-      // Tạo token mới
+      // Tạo token mới với purpose='resend'
       const tokenObj = createActivationToken(now);
       await trx('email_activation_tokens').insert({
         user_id: user.id,
+        purpose: 'resend',
         token_hash: tokenObj.tokenHash,
         expires_at: tokenObj.expiresAt,
       });

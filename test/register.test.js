@@ -131,6 +131,7 @@ describe('T-07 User Registration Tests', () => {
       .where({ user_id: user.id })
       .first();
     assert.ok(tokenRecord, 'Phải có token kích hoạt trong DB');
+    assert.strictEqual(tokenRecord.purpose, 'register');
     assert.strictEqual(tokenRecord.token_hash.length, 64);
     assert.strictEqual(tokenRecord.used_at, null);
 

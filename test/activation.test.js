@@ -46,6 +46,7 @@ describe('T-08 Account Activation & Resend Tests', () => {
 
       await trx('email_activation_tokens').insert({
         user_id: u.id,
+        purpose: 'register',
         token_hash: tokenObj.tokenHash,
         expires_at: tokenObj.expiresAt,
       });
@@ -272,8 +273,9 @@ describe('T-08 Account Activation & Resend Tests', () => {
     const email = `act_redis_normal_${Date.now()}@example.test`;
     const { user } = await createInactiveUserWithToken(email);
 
-    // Bắt đầu với 0 token để đếm chuẩn
-    await db('email_activation_tokens').where({ user_id: user.id }).del();
+    // Không xoá token ban đầu (giữ nguyên token register)
+    const initialTokens = await db('email_activation_tokens').where({ user_id: user.id });
+    assert.strictEqual(initialTokens.length, 1, 'Phải có 1 token ban đầu lúc tạo user');
 
     const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
     const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
@@ -302,11 +304,17 @@ describe('T-08 Account Activation & Resend Tests', () => {
         assert.strictEqual(devMailCount, mailBefore + 1, `Lần ${i} phải gửi email`);
       }
 
-      const countAfter5 = await db('email_activation_tokens')
+      const resendTokensAfter5 = await db('email_activation_tokens')
+        .where({ user_id: user.id, purpose: 'resend' })
+        .count('id as count')
+        .first();
+      assert.strictEqual(Number(resendTokensAfter5.count), 5, 'Sau 5 lần phải tạo đúng 5 token resend');
+
+      const allTokensAfter5 = await db('email_activation_tokens')
         .where({ user_id: user.id })
         .count('id as count')
         .first();
-      assert.strictEqual(Number(countAfter5.count), 5, 'Sau 5 lần phải tạo đúng 5 token');
+      assert.strictEqual(Number(allTokensAfter5.count), 6, 'Tổng số token là 6 (1 register + 5 resend)');
 
       // Lần 6: KHÔNG tạo token và KHÔNG gửi mail
       const mailBefore6 = devMailCount;
@@ -318,11 +326,11 @@ describe('T-08 Account Activation & Resend Tests', () => {
       assert.strictEqual(res6.status, 202);
       assert.strictEqual(devMailCount, mailBefore6, 'Lần 6 không được gửi email');
 
-      const countAfter6 = await db('email_activation_tokens')
+      const allTokensAfter6 = await db('email_activation_tokens')
         .where({ user_id: user.id })
         .count('id as count')
         .first();
-      assert.strictEqual(Number(countAfter6.count), 5, 'Lần 6 không được tạo thêm token');
+      assert.strictEqual(Number(allTokensAfter6.count), 6, 'Lần 6 không được tạo thêm token');
     } finally {
       console.log = originalLog;
     }
@@ -331,9 +339,6 @@ describe('T-08 Account Activation & Resend Tests', () => {
   test('5c. Redis bị xoá key giữa chừng (mô phỏng Redis khởi động lại mất dữ liệu): sau 5 lần, xoá key bộ đếm, gọi lần 6 thì chốt chặn DB vẫn chặn', async () => {
     const email = `act_redis_reset_${Date.now()}@example.test`;
     const { user } = await createInactiveUserWithToken(email);
-
-    // Bắt đầu với 0 token
-    await db('email_activation_tokens').where({ user_id: user.id }).del();
 
     const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
     const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
@@ -351,10 +356,10 @@ describe('T-08 Account Activation & Resend Tests', () => {
     }
 
     const countAfter5 = await db('email_activation_tokens')
-      .where({ user_id: user.id })
+      .where({ user_id: user.id, purpose: 'resend' })
       .count('id as count')
       .first();
-    assert.strictEqual(Number(countAfter5.count), 5);
+    assert.strictEqual(Number(countAfter5.count), 5, 'Phải có 5 token resend');
 
     // Mô phỏng Redis khởi động lại mất dữ liệu: xoá key bộ đếm
     await redisClient.del(rateLimitKey);
@@ -382,7 +387,7 @@ describe('T-08 Account Activation & Resend Tests', () => {
       assert.strictEqual(devMailCount, 0, 'Chốt chặn DB chặn nên không được gửi email');
 
       const countAfter6 = await db('email_activation_tokens')
-        .where({ user_id: user.id })
+        .where({ user_id: user.id, purpose: 'resend' })
         .count('id as count')
         .first();
       assert.strictEqual(
@@ -398,9 +403,6 @@ describe('T-08 Account Activation & Resend Tests', () => {
   test('5d. 10 request resend song song cho cùng một email: tổng số token tạo ra trong giờ không vượt quá 5', async () => {
     const email = `act_parallel_${Date.now()}@example.test`;
     const { user } = await createInactiveUserWithToken(email);
-
-    // Bắt đầu với 0 token
-    await db('email_activation_tokens').where({ user_id: user.id }).del();
 
     const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
     const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
@@ -422,9 +424,9 @@ describe('T-08 Account Activation & Resend Tests', () => {
       assert.strictEqual(body.success, true);
     }
 
-    // Đếm số token tạo ra trong giờ
+    // Đếm số token resend tạo ra trong giờ
     const countResult = await db('email_activation_tokens')
-      .where({ user_id: user.id })
+      .where({ user_id: user.id, purpose: 'resend' })
       .whereRaw("created_at > (now() - interval '1 hour')")
       .count('* as count')
       .first();
@@ -432,8 +434,129 @@ describe('T-08 Account Activation & Resend Tests', () => {
     const totalCreated = Number(countResult.count);
     assert.ok(
       totalCreated <= 5,
-      `Tổng số token tạo ra trong giờ phải <= 5, thực tế là ${totalCreated}`
+      `Tổng số token resend tạo ra trong giờ phải <= 5, thực tế là ${totalCreated}`
     );
+  });
+
+  test('5f. Luồng thật: POST /api/auth/register -> gửi lại lần 1 đến 5 tạo token và có [DEV MAIL] -> lần 6 bị chặn -> tổng số token = 1 register + 5 resend', async () => {
+    const email = `act_real_flow_${Date.now()}@example.test`;
+    const password = 'Password@123';
+    const fullName = 'Real Flow User';
+
+    const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
+    const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
+    await redisClient.del(`${prefix}resend:${emailHash}`);
+
+    let devMailCount = 0;
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const msg = args.join(' ');
+      if (msg.includes('[DEV MAIL]')) {
+        devMailCount++;
+      }
+      originalLog(...args);
+    };
+
+    try {
+      // 1. Đăng ký tài khoản qua POST /api/auth/register
+      const regRes = await fetch(`${baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, full_name: fullName }),
+      });
+      assert.strictEqual(regRes.status, 202);
+      assert.strictEqual(devMailCount, 1, 'Đăng ký phải gửi 1 email kích hoạt');
+
+      const user = await db('users').where({ email }).first();
+      assert.ok(user, 'User phải được tạo trong CSDL');
+
+      const initialTokens = await db('email_activation_tokens').where({ user_id: user.id });
+      assert.strictEqual(initialTokens.length, 1);
+      assert.strictEqual(initialTokens[0].purpose, 'register');
+
+      // 2. Gửi lại lần 1 đến 5: mỗi lần đều tạo token mới và có [DEV MAIL]
+      for (let i = 1; i <= 5; i++) {
+        const mailBefore = devMailCount;
+        const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        assert.strictEqual(res.status, 202);
+        assert.strictEqual(devMailCount, mailBefore + 1, `Gửi lại lần ${i} phải gửi email`);
+      }
+
+      // 3. Gửi lại lần 6: không có token mới, không có mail, body giống hệt các lần trước
+      const mailBefore6 = devMailCount;
+      const res6 = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.strictEqual(res6.status, 202);
+      const body6 = await res6.json();
+      assert.deepStrictEqual(body6, {
+        success: true,
+        message: 'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.',
+      });
+      assert.strictEqual(devMailCount, mailBefore6, 'Gửi lại lần 6 không được gửi thêm email');
+
+      // 4. Tổng số token của user = 1 token 'register' + 5 token 'resend'
+      const allTokens = await db('email_activation_tokens')
+        .where({ user_id: user.id })
+        .orderBy('created_at', 'asc');
+
+      assert.strictEqual(allTokens.length, 6, 'Tổng cộng phải có đúng 6 token (1 register + 5 resend)');
+
+      const registerTokens = allTokens.filter((t) => t.purpose === 'register');
+      const resendTokens = allTokens.filter((t) => t.purpose === 'resend');
+      assert.strictEqual(registerTokens.length, 1, 'Phải có đúng 1 token purpose register');
+      assert.strictEqual(resendTokens.length, 5, 'Phải có đúng 5 token purpose resend');
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  test('5g. Đăng ký rồi gửi lại 5 lần, sau đó token register ban đầu không còn dùng được (đã bị vô hiệu khi gửi lại)', async () => {
+    const email = `act_inval_reg_${Date.now()}@example.test`;
+    const password = 'Password@123';
+    const { user, rawToken: registerToken } = await createInactiveUserWithToken(email, password);
+
+    const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
+    const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
+    await redisClient.del(`${prefix}resend:${emailHash}`);
+
+    // Gửi lại 5 lần
+    for (let i = 1; i <= 5; i++) {
+      const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.strictEqual(res.status, 202);
+    }
+
+    // Kiểm tra token register ban đầu đã có used_at chưa
+    const originalTokenRow = await db('email_activation_tokens')
+      .where({ user_id: user.id, purpose: 'register' })
+      .first();
+    assert.ok(originalTokenRow.used_at !== null, 'Token register ban đầu phải được đánh dấu used_at');
+
+    // Thử kích hoạt bằng token register ban đầu
+    const activateRes = await fetch(`${baseUrl}/api/auth/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: registerToken }),
+    });
+
+    assert.strictEqual(activateRes.status, 409, 'Token register đã bị vô hiệu nên phải trả 409');
+    const activateBody = await activateRes.json();
+    assert.strictEqual(activateBody.code, 'TOKEN_USED');
+    assert.strictEqual(activateBody.message, 'Liên kết đã được sử dụng.');
+
+    // User vẫn chưa kích hoạt
+    const userInDb = await db('users').where({ id: user.id }).first();
+    assert.strictEqual(userInDb.is_active, false);
   });
 
   test('5e. Output log của ca (a) không chứa email', async () => {

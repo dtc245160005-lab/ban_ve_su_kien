@@ -14,6 +14,8 @@ exports.up = async function(knex) {
   await knex.schema.createTable('email_activation_tokens', function(table) {
     table.increments('id').primary();
     table.integer('user_id').unsigned().notNullable();
+    table.specificType('purpose', 'varchar(16)').notNullable();
+    table.check("purpose IN ('register', 'resend')");
     table.specificType('token_hash', 'char(64)').notNullable().unique();
     table.timestamp('expires_at', { useTz: true }).notNullable();
     table.timestamp('used_at', { useTz: true }).nullable();
@@ -22,7 +24,8 @@ exports.up = async function(knex) {
     // Khóa ngoại tới users.id với hành vi xóa CASCADE
     table.foreign('user_id').references('id').inTable('users').onDelete('CASCADE');
 
-    // Index trên user_id để tối ưu tìm kiếm token của người dùng
+    // Index composite tối ưu truy vấn đếm token theo mục đích và thời gian
+    table.index(['user_id', 'purpose', 'created_at']);
     table.index('user_id');
   });
 };
