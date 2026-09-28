@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Dịch vụ ứng dụng Node.js
+  api:
+    build: .
+    ports:
+      - "8090:8090"
+    environment:
+      - DB_CONNECTION_STRING=postgres://postgres:mysecretpassword@db:5432/postgres
+      - PORT=8090
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Dịch vụ Cơ sở dữ liệu PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Dịch vụ Cache Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
