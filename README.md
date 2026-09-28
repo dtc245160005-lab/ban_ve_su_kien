@@ -52,6 +52,11 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | `POSTGRES_PASSWORD` | Mật khẩu người dùng CSDL | `secret` |
 | `POSTGRES_DB` | Tên cơ sở dữ liệu | `ban_ve_su_kien` |
 | `REDIS_URL` | URL kết nối Redis | `redis://localhost:6379` |
+| `LOGIN_MAX_FAILED_ATTEMPTS` | Số lần đăng nhập sai tối đa theo email trước khi khoá | `5` |
+| `LOGIN_MAX_IP_FAILED_ATTEMPTS` | Số lần đăng nhập sai tối đa theo IP trước khi khoá | `20` |
+| `LOGIN_LOCK_SECONDS` | Thời gian khoá đăng nhập (giây) | `900` |
+| `SESSION_COOKIE_NAME` | Tên cookie lưu session token | `session_token` |
+| `SESSION_TTL_SECONDS` | Thời gian sống của phiên đăng nhập trong Redis (giây) | `28800` |
 | `DEMO_ADMIN_EMAIL` | Email tài khoản demo Admin | `admin@example.com` |
 | `DEMO_ADMIN_PASSWORD` | Mật khẩu tài khoản demo Admin | `Admin@123456` |
 | `DEMO_ORGANIZER_EMAIL` | Email tài khoản demo Organizer | `organizer@example.com` |
@@ -142,3 +147,24 @@ Bộ kiểm thử thực hiện xác minh:
 9. Khóa chính ghép `(user_id, role_id)` trong bảng `user_roles` (dùng transaction rollback an toàn).
 10. Kiểm tra an toàn rollback migration: xác minh batch độc lập trong `knex_migrations` trước khi rollback, chỉ xóa 3 bảng T-04 và bảo toàn bảng `events`, sau đó migrate lại.
 11. Chạy seed và kiểm tra lại lần cuối sau khi migrate lại.
+
+---
+
+## 6. Chức Năng Đăng Nhập & Quản Lý Phiên (T-05 / S-02)
+
+- **Mật khẩu & Chống timing attack:** Xác thực bằng Argon2id (`argon2.argon2id`) kết hợp dummy hash khi email không tồn tại nhằm đồng đều thời gian phản hồi.
+- **Bảo mật phản hồi:** Cùng trả về thông báo lỗi `Email hoặc mật khẩu không đúng.` (HTTP 401) khi email không tồn tại hoặc mật khẩu sai, hoặc tài khoản chưa kích hoạt (`is_active = false`).
+- **Khoá tạm thời chống dò mật khẩu:**
+  - Khoá theo email: sau 5 lần đăng nhập sai trong vòng 15 phút.
+  - Khoá theo IP: sau 20 lần đăng nhập sai từ cùng một IP trong vòng 15 phút.
+  - Khi bị khoá, trả về HTTP 429 cùng header `Retry-After` và trường `retryAfterSeconds` trong body.
+  - Trạng thái khoá và số lần thử sai được lưu trữ an toàn trong Redis, đảm bảo persistence khi service khởi động lại.
+- **Quản lý phiên (Session Management):**
+  - Lưu phiên đăng nhập trong Redis với TTL mặc định 8 giờ.
+  - Gửi cookie phiên với cờ `HttpOnly`, `SameSite=Lax` (và `Secure` khi chạy production).
+  - Khi phiên hết hạn hoặc không hợp lệ, trả về HTTP 401.
+- **Bảo vệ dữ liệu cá nhân:** Tuyệt đối không log thông tin email thô, mật khẩu hoặc session token vào server logs.
+- **Endpoints:**
+  - `POST /api/auth/login`: Nhận `{ email, password }`, trả về 200 kèm cookie phiên khi đúng.
+  - `GET /api/auth/session`: Đọc cookie phiên, trả về thông tin phiên người dùng hoặc 401 khi hết hạn.
+  - `POST /api/auth/logout`: Xoá session trong Redis và xoá cookie ở trình duyệt.
