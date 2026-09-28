@@ -2,9 +2,21 @@ services:
   # Dịch vụ ứng dụng Node.js
   api:
     build: .
+    env_file:
+      - .env
+    command: sh -c "npm run setup && npm start"
     ports:
       - "${PORT:-8090}:8090"
     environment:
+      - DOCKER_CONTAINER=true
+      - NODE_ENV=development
+      - MAIL_TRANSPORT=dev
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:8090}
+      - REDIS_KEY_PREFIX=${REDIS_KEY_PREFIX:-bvsk:}
+      - DEMO_ADMIN_EMAIL=${DEMO_ADMIN_EMAIL:-admin@example.com}
+      - DEMO_ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:-your_demo_admin_password}
+      - DEMO_ORGANIZER_EMAIL=${DEMO_ORGANIZER_EMAIL:-organizer@example.com}
+      - DEMO_ORGANIZER_PASSWORD=${DEMO_ORGANIZER_PASSWORD:-your_demo_organizer_password}
       - DB_CONNECTION_STRING=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ban_ve_su_kien}
       - REDIS_URL=redis://redis:6379
       - PORT=8090

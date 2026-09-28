@@ -6,19 +6,29 @@ Dự án backend bán vé sự kiện xây dựng trên Node.js, Express, Knex, 
 
 ## Chạy dự án
 
-Thực hiện lần lượt các lệnh sau để khởi động và kiểm tra hệ thống:
+Thực hiện lần lượt các bước sau theo đúng thứ tự để thiết lập và khởi động hệ thống:
 
 ```bash
-# 1. Khởi động các dịch vụ PostgreSQL và Redis
+# 1. Tạo file cấu hình môi trường từ file mẫu
+cp .env.example .env
+# (Trên Windows PowerShell: Copy-Item .env.example .env)
+
+# 2. Khởi động các dịch vụ PostgreSQL và Redis nền
 docker compose up -d db redis
 
-# 2. Cài đặt các gói phụ thuộc theo package-lock.json
+# 3. Cài đặt các gói phụ thuộc theo package-lock.json
 npm ci
 
-# 3. Chạy kiểm tra tự động toàn diện (tạo DB tạm, migrate, rollback, seed, lint, test, dọn dẹp DB)
+# 4. Kiểm tra sức khỏe môi trường và các điều kiện tiên quyết
+npm run doctor
+
+# 5. Khởi tạo cấu trúc cơ sở dữ liệu và seed dữ liệu mẫu ban đầu
+npm run setup
+
+# 6. Chạy bộ kiểm tra tự động toàn diện (tạo DB tạm, migrate, rollback, seed, lint, test)
 npm run verify
 
-# 4. Khởi động ứng dụng
+# 7. Khởi động máy chủ ứng dụng
 npm start
 ```
 
@@ -232,5 +242,44 @@ npm run backup
   - Giao diện danh sách sự kiện, form tạo sự kiện mới, trang chi tiết sự kiện và quản lý suất diễn.
   - Chống bấm gửi trùng lặp (vô hiệu hoá nút submit trong lúc đang gửi yêu cầu).
   - Hiển thị lỗi kiểm tra dữ liệu trực tiếp dưới từng ô nhập liệu.
+
+---
+
+## 10. Lỗi Thường Gặp (Troubleshooting)
+
+### 1. "DB cũ từ nhánh khác, chạy docker compose down -v" (hoặc migration directory is corrupt)
+- **Hiện tượng:** Khi chạy `npm run doctor` hoặc `npm run setup`, hệ thống báo `[LỖI] DB cũ từ nhánh khác, chạy docker compose down -v` hoặc Knex báo `The migration directory is corrupt`.
+- **Nguyên nhân:** Database PostgreSQL (volume Docker) vẫn còn lưu lại các migration từ các nhánh tính năng cũ khác chưa được merge vào nhánh hiện tại.
+- **Cách khắc phục:**
+  1. Dừng container và xoá sạch toàn bộ volume database cũ:
+     ```bash
+     docker compose down -v
+     ```
+  2. Khởi động lại dịch vụ và chạy lại thiết lập cơ sở dữ liệu:
+     ```bash
+     docker compose up -d db redis
+     npm run setup
+     ```
+
+### 2. Thiếu biến môi trường trong file `.env`
+- **Hiện tượng:** `npm run doctor` báo `[LỖI] Thiếu các biến môi trường trong file .env: <danh sách biến>`.
+- **Nguyên nhân:** File `.env` được tạo từ phiên bản cũ hoặc chưa sao chép đầy đủ các cấu hình mới từ `.env.example`.
+- **Cách khắc phục:**
+  - Đối chiếu file `.env` với `.env.example`, bổ sung các tên biến còn thiếu được báo lỗi và điền giá trị thích hợp (không để lộ thông tin nhạy cảm vào git).
+
+### 3. Không có Docker trên Windows
+- **Hiện tượng:** Môi trường Windows không cài đặt được Docker Desktop hoặc chưa bật Hyper-V / WSL.
+- **Cách khắc phục:**
+  - **Phương án 1 (Khuyên dùng):** Cài đặt Docker Desktop và kích hoạt backend WSL 2 (Windows Subsystem for Linux), sau đó chạy các lệnh Docker bình thường trong terminal.
+  - **Phương án 2 (Chạy trực tiếp không dùng Docker):**
+    - **PostgreSQL:** Cài đặt PostgreSQL trực tiếp cho Windows (hoặc qua `winget install PostgreSQL.PostgreSQL`), tạo database `ban_ve_su_kien` và cập nhật `DB_CONNECTION_STRING` trong `.env`.
+    - **Redis:** Cài đặt Memurai (bản phân phối Redis native tương thích hoàn toàn cho Windows - tải từ [memurai.com](https://www.memurai.com) hoặc `winget install Memurai.Memurai`) hoặc chạy Redis trong WSL 2 (`sudo apt install redis-server && sudo service redis-server start`). Đảm bảo `REDIS_URL` trong `.env` trỏ đúng tới địa chỉ Redis (`redis://localhost:6379`).
+
+### 4. Xung đột cổng 5432 hoặc 6379 (Port is already allocated)
+- **Hiện tượng:** Khi chạy `docker compose up -d`, Docker báo lỗi `Bind for 0.0.0.0:5432 failed: port is already allocated` (hoặc cổng 6379). Hoặc kết nối bị từ chối do dịch vụ cục bộ chiếm cổng.
+- **Nguyên nhân:** Máy chủ đã có sẵn dịch vụ PostgreSQL hoặc Redis cài đặt trực tiếp trên hệ điều hành đang lắng nghe tại cổng mặc định.
+- **Cách khắc phục:**
+  - **Cách 1 (Đổi cổng container):** Đổi cổng trong `.env`: ví dụ `POSTGRES_PORT=5433` (và cập nhật cổng 5433 trong `DB_CONNECTION_STRING`), hoặc `REDIS_PORT=6380` (và cập nhật `REDIS_URL=redis://localhost:6380`). Sau đó chạy lại `docker compose up -d db redis`.
+  - **Cách 2 (Tạm dừng dịch vụ cục bộ):** Tạm dừng dịch vụ PostgreSQL / Redis đang chạy trên hệ điều hành trước khi bật Docker.
 
 
