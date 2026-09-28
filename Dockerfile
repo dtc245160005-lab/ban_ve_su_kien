@@ -1,17 +1,26 @@
-FROM node:18-alpine
+FROM node:20-bookworm-slim AS dependencies
 
-# Tạo thư mục làm việc trong container
 WORKDIR /app
 
-# Cài đặt thư viện trước (giúp tối ưu cache)
-COPY package*.json ./
-RUN npm install
+# Cai cong cu can thiet cho argon2 / node-gyp
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy toàn bộ mã nguồn vào
+ENV npm_config_nodedir=/usr/local
+
+COPY package*.json ./
+
+RUN npm ci --omit=dev
+
+
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
-# Mở cổng 8090
 EXPOSE 8090
 
-# Khởi động ứng dụng
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
