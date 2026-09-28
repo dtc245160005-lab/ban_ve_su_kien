@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kích hoạt tài khoản</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="activate-title">
+        <div class="brand-block">
+          <div class="brand-icon" aria-hidden="true">A</div>
+          <h1 id="activate-title">Kích hoạt tài khoản</h1>
+          <p id="statusSubtitle">Đang xác thực liên kết kích hoạt...</p>
+        </div>
+
+        <div id="statusBox" class="message" role="alert" aria-live="polite" hidden></div>
+
+        <div id="actionArea" style="margin-top: 20px;"></div>
+
+        <form id="resendForm" class="auth-form" style="margin-top: 20px;" hidden novalidate>
+          <hr style="border: 0; border-top: 1px solid var(--color-border); margin-bottom: 20px;" />
+          <p style="font-size: 0.9em; color: var(--color-text-muted); margin-bottom: 12px;">
+            Nhập email để nhận liên kết kích hoạt mới:
+          </p>
+          <div class="field-group">
+            <label for="resendEmail">Email</label>
+            <input
+              id="resendEmail"
+              name="email"
+              type="email"
+              placeholder="example@email.com"
+              required
+            />
+          </div>
+          <button id="resendButton" class="primary-btn" type="submit">Gửi lại email kích hoạt</button>
+        </form>
+
+        <p class="footer-text" style="margin-top: 24px;">
+          <a href="/login.html">Quay lại trang Đăng nhập</a>
+        </p>
+      </section>
+    </main>
+
+    <script src="./activate.js" defer></script>
+  </body>
+</html>

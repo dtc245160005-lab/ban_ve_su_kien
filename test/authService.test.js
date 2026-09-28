@@ -291,7 +291,7 @@ describe('T-05 Authentication Hardening & Endpoints', () => {
     assert.ok(result.body.retryAfterSeconds > 0);
   });
 
-  test('6. Tài khoản chưa kích hoạt (is_active = false) không đăng nhập được', async () => {
+  test('6. Tài khoản chưa kích hoạt (is_active = false) nhận 403 ACCOUNT_NOT_ACTIVE khi mật khẩu đúng', async () => {
     const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -301,9 +301,10 @@ describe('T-05 Authentication Hardening & Endpoints', () => {
       }),
     });
 
-    assert.strictEqual(res.status, 401);
+    assert.strictEqual(res.status, 403);
     const body = await res.json();
-    assert.strictEqual(body.message, GENERIC_LOGIN_ERROR);
+    assert.strictEqual(body.code, 'ACCOUNT_NOT_ACTIVE');
+    assert.ok(body.message.includes('chưa được kích hoạt'));
     assert.strictEqual(res.headers.get('set-cookie'), null);
   });
 

@@ -135,6 +135,13 @@ body {
   color: var(--primary);
 }
 
+.field-error {
+  color: var(--error-text);
+  font-size: 12px;
+  min-height: 16px;
+  line-height: 1.2;
+}
+
 .message {
   padding: 10px 12px;
   border-radius: 10px;
@@ -146,6 +153,12 @@ body {
   border: 1px solid #fecaca;
   background: var(--error-bg);
   color: var(--error-text);
+}
+
+.message.success {
+  border: 1px solid #bbf7d0;
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .footer-text {

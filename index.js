@@ -32,7 +32,19 @@ async function start(options = {}) {
     throw new Error('Redis connection failed', { cause: err });
   }
 
-  // 3. Khởi tạo Express app và bắt đầu lắng nghe
+  // 3. Kiểm tra cấu hình email service
+  try {
+    const emailService = options.emailService || require('./services/emailService');
+    emailService.assertConfiguration();
+  } catch (err) {
+    console.error(`❌ Khởi động thất bại: ${err.message}`);
+    if (redis && redis.isOpen) {
+      await closeRedis();
+    }
+    throw err;
+  }
+
+  // 4. Khởi tạo Express app và bắt đầu lắng nghe
   const app = options.app || createApp(options);
   const server = await new Promise((resolve, reject) => {
     const s = app.listen(port, () => {

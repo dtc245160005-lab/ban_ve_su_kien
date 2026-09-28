@@ -81,7 +81,7 @@ function createAuthService({
       // Giữ passwordMatches = false nếu có lỗi verify
     }
 
-    if (!user || !passwordMatches || !user.isActive) {
+    if (!user || !passwordMatches) {
       await attemptStore.recordFailure(eKey, emailMaxAttempts);
       if (iKey) {
         await attemptStore.recordFailure(iKey, ipMaxAttempts);
@@ -89,6 +89,18 @@ function createAuthService({
       return {
         status: 401,
         body: { success: false, message: GENERIC_LOGIN_ERROR },
+      };
+    }
+
+    if (!user.isActive) {
+      return {
+        status: 403,
+        body: {
+          success: false,
+          code: 'ACCOUNT_NOT_ACTIVE',
+          message:
+            'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email hoặc gửi lại liên kết kích hoạt.',
+        },
       };
     }
 
