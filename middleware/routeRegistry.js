@@ -135,7 +135,7 @@ function findUnsecuredApiRoutes(app) {
         if (layer.handle._mountPrefix) {
           subPrefix = (prefix + layer.handle._mountPrefix).replace(/\/+/g, '/');
         } else if (layer.matchers && layer.matchers.length) {
-          for (const testCandidate of ['/api/auth', '/api/events', '/api']) {
+          for (const testCandidate of ['/api/auth', '/api/events', '/api/organizer', '/api']) {
             const m = layer.matchers[0](testCandidate);
             if (m && m.path) {
               subPrefix = (prefix + m.path).replace(/\/+/g, '/');

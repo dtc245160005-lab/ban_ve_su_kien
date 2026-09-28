@@ -146,6 +146,9 @@ npm test
 ```
 
 Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
+- `test/events.test.js`: Kiểm thử API sự kiện, phân quyền truy cập, kiểm tra dữ liệu, lọc sự kiện nháp/công khai và migration gán owner_id cho admin.
+- `test/showtimes.test.js`: Kiểm thử API suất diễn, xác thực múi giờ, kiểm tra thời điểm tương lai/quá khứ, cảnh báo trùng giờ và lưu trữ chuẩn UTC.
+- `test/eventForm.test.js`: Kiểm thử các hàm thuần validateEventForm, validateShowtimeForm, toIsoVietnam và formatVietnamDateTime.
 - `test/register.test.js`: Kiểm thử luồng đăng ký người mua, kiểm tra dữ liệu, chống timing attack, concurrency race condition và bảo mật log.
 - `test/activation.test.js`: Kiểm thử kích hoạt tài khoản atomic, token hết hạn (410), đã dùng (409), rate limit gửi lại qua Redis, và đăng nhập với tài khoản chưa kích hoạt (403 ACCOUNT_NOT_ACTIVE).
 - `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles seed và xác thực mật khẩu Argon2id của 2 tài khoản demo.
@@ -206,4 +209,28 @@ npm run backup
 - **Dịch vụ Email (`services/emailService.js`):**
   - Môi trường dev/test: In nội dung email kèm liên kết kích hoạt ra console dạng khối `[DEV MAIL]`.
   - Môi trường production: Gửi email thực qua giao thức SMTP sử dụng `nodemailer`. Kiểm tra cấu hình bắt buộc khi ứng dụng khởi động.
+
+---
+
+## 9. Quản Lý Sự Kiện & Suất Diễn (T-09, T-10 / S-04)
+
+- **Mô hình dữ liệu:**
+  - Bảng `events`: Bổ sung `owner_id` (FK tới `users.id` với `ON DELETE RESTRICT`), `venue`, `status` (`draft`, `published`, `archived`), bỏ các cột giá và tổng số vé cũ.
+  - Bảng `showtimes`: Lưu các suất diễn gắn với sự kiện (`event_id` với `ON DELETE RESTRICT`), thời điểm bắt đầu `starts_at` (`timestamptz`), tên phòng `room_name`.
+- **Phân quyền truy cập:**
+  - Ban tổ chức (`organizer`) chỉ xem, sửa, xoá các sự kiện và suất diễn của chính mình.
+  - Quản trị viên (`admin`) có quyền quản lý toàn bộ sự kiện và suất diễn trên hệ thống.
+  - Khách truy cập và người mua vé chỉ xem được danh sách sự kiện công khai đã ở trạng thái `published` qua `GET /api/events`. Sự kiện ở trạng thái `draft` không bao giờ hiện với người mua.
+- **Quy tắc suất diễn & thời gian:**
+  - Thời gian luôn lưu trữ chuẩn UTC trong PostgreSQL và hiển thị theo múi giờ Việt Nam (`Asia/Ho_Chi_Minh`, `+07:00`) trên giao diện người dùng.
+  - Chặn thêm hoặc cập nhật suất diễn ở quá khứ (HTTP 400 kèm thông báo rõ ràng).
+  - Bắt buộc chuỗi thời gian phải có múi giờ hợp lệ (ví dụ `+07:00` hoặc `Z`).
+  - Khi hai suất diễn cùng sự kiện trùng hoàn toàn thời gian: hệ thống vẫn cho phép lưu và trả về HTTP 201 kèm danh sách cảnh báo `warnings` màu vàng trên giao diện.
+- **Ràng buộc toàn vẹn khi xoá:**
+  - Không thể xoá sự kiện khi vẫn còn suất diễn con gắn kèm (HTTP 409). Phải xoá toàn bộ suất diễn trước khi xoá sự kiện.
+- **Giao diện quản lý (`public/organizer-events.html`):**
+  - Giao diện danh sách sự kiện, form tạo sự kiện mới, trang chi tiết sự kiện và quản lý suất diễn.
+  - Chống bấm gửi trùng lặp (vô hiệu hoá nút submit trong lúc đang gửi yêu cầu).
+  - Hiển thị lỗi kiểm tra dữ liệu trực tiếp dưới từng ô nhập liệu.
+
 

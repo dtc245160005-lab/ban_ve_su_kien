@@ -118,13 +118,14 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     const testUsers = await db('users').whereIn('email', testEmails).select('id');
     const userIds = testUsers.map((u) => u.id);
     if (userIds.length > 0) {
+      await db('events').whereIn('owner_id', userIds).del();
       await db('user_roles').whereIn('user_id', userIds).del();
       await db('users').whereIn('id', userIds).del();
     }
     await db.destroy();
   });
 
-  test('1. Người mua gọi POST /api/events bằng HTTP trực tiếp: nhận 403, và có đúng một dòng log forbidden', async () => {
+  test('1. Người mua gọi POST /api/organizer/events bằng HTTP trực tiếp: nhận 403, và có đúng một dòng log forbidden', async () => {
     const loginRes = await loginAndGetCookie(baseUrl, buyerEmail, defaultPassword);
     assert.strictEqual(loginRes.status, 200);
     assert.ok(loginRes.cookie);
@@ -144,7 +145,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     };
 
     try {
-      const res = await fetch(`${baseUrl}/api/events?email=a@b.com&token=abc123`, {
+      const res = await fetch(`${baseUrl}/api/organizer/events?email=a@b.com&token=abc123`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,8 +154,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
         body: JSON.stringify({
           title: 'Sự kiện trái phép của Buyer',
           description: 'Không được phép tạo',
-          price: 100000,
-          total_tickets: 50,
+          venue: 'Hà Nội',
         }),
       });
 
@@ -170,7 +170,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       assert.strictEqual(logEntry.event, 'forbidden');
       assert.strictEqual(logEntry.userId, buyerUser.id);
       assert.strictEqual(logEntry.method, 'POST');
-      assert.strictEqual(logEntry.path, '/api/events');
+      assert.strictEqual(logEntry.path, '/api/organizer/events');
       assert.ok(logEntry.at);
       assert.ok(!Number.isNaN(Date.parse(logEntry.at)));
 
@@ -187,16 +187,15 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     }
   });
 
-  test('2. Chưa đăng nhập gọi POST /api/events: 401', async () => {
-    const res = await fetch(`${baseUrl}/api/events`, {
+  test('2. Chưa đăng nhập gọi POST /api/organizer/events: 401', async () => {
+    const res = await fetch(`${baseUrl}/api/organizer/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         title: 'Sự kiện không đăng nhập',
-        price: 50000,
-        total_tickets: 10,
+        venue: 'Hà Nội',
       }),
     });
 
@@ -206,13 +205,13 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     assert.strictEqual(body.message, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
   });
 
-  test('3. Organizer gọi POST /api/events: 201. Admin: 201', async () => {
+  test('3. Organizer gọi POST /api/organizer/events: 201. Admin: 201', async () => {
     // Organizer tạo sự kiện
     const orgLogin = await loginAndGetCookie(baseUrl, organizerEmail, defaultPassword);
     assert.strictEqual(orgLogin.status, 200);
     assert.ok(orgLogin.cookie);
 
-    const orgRes = await fetch(`${baseUrl}/api/events`, {
+    const orgRes = await fetch(`${baseUrl}/api/organizer/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -221,8 +220,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       body: JSON.stringify({
         title: 'Đêm nhạc acoustic Organizer',
         description: 'Nhạc trẻ',
-        price: 200000,
-        total_tickets: 100,
+        venue: 'Nhà hát lớn Hà Nội',
       }),
     });
 
@@ -236,7 +234,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     assert.strictEqual(adminLogin.status, 200);
     assert.ok(adminLogin.cookie);
 
-    const adminRes = await fetch(`${baseUrl}/api/events`, {
+    const adminRes = await fetch(`${baseUrl}/api/organizer/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -245,8 +243,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       body: JSON.stringify({
         title: 'Hội thảo công nghệ Admin',
         description: 'Sự kiện cấp cao',
-        price: 350000,
-        total_tickets: 200,
+        venue: 'Trung tâm Hội nghị Quốc gia',
       }),
     });
 
@@ -299,7 +296,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     assert.ok(userRoles.includes('buyer'));
     assert.ok(userRoles.includes('organizer'));
 
-    const res = await fetch(`${baseUrl}/api/events`, {
+    const res = await fetch(`${baseUrl}/api/organizer/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -308,8 +305,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       body: JSON.stringify({
         title: 'Sự kiện của tài khoản hai vai trò',
         description: 'Vừa là người mua vừa là ban tổ chức',
-        price: 120000,
-        total_tickets: 60,
+        venue: 'Cung Văn hoá Hữu nghị',
       }),
     });
 
@@ -334,7 +330,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     await redisClient.del(sessionKey);
 
     // Gửi request với cookie cũ sau khi session đã bị xoá
-    const res = await fetch(`${baseUrl}/api/events`, {
+    const res = await fetch(`${baseUrl}/api/organizer/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -342,8 +338,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       },
       body: JSON.stringify({
         title: 'Sự kiện sau khi xoá phiên',
-        price: 150000,
-        total_tickets: 40,
+        venue: 'Hà Nội',
       }),
     });
 
