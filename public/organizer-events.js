@@ -255,6 +255,7 @@
   // Tạo sự kiện mới
   createEventForm.onsubmit = async (e) => {
     e.preventDefault();
+    if (createEventBtn.disabled) return;
     clearErrors();
 
     const title = createTitle.value.trim();
@@ -309,6 +310,7 @@
   // Cập nhật sự kiện
   editEventForm.onsubmit = async (e) => {
     e.preventDefault();
+    if (saveEventBtn.disabled) return;
     clearErrors();
 
     const title = editTitle.value.trim();
@@ -395,6 +397,7 @@
   // Thêm suất diễn
   addShowtimeForm.onsubmit = async (e) => {
     e.preventDefault();
+    if (addShowtimeBtn.disabled) return;
     clearErrors();
     showtimeWarning.style.display = 'none';
 
