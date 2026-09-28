@@ -123,6 +123,8 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
           }
         });
 
+        child.stderr.on('data', () => {});
+
         child.once('error', (err) => {
           clearTimeout(timeout);
           reject(err);

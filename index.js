@@ -10,9 +10,9 @@ async function start(options = {}) {
   // 1. Kiểm tra kết nối cơ sở dữ liệu
   try {
     await db.raw('SELECT 1');
-    console.log('✅ Đã kết nối cơ sở dữ liệu thành công!');
+    console.log('[DB] Kết nối cơ sở dữ liệu thành công.');
   } catch (err) {
-    console.error('❌ Khởi động thất bại: Không thể kết nối cơ sở dữ liệu.');
+    console.error('[DB] Khởi động thất bại: Không thể kết nối cơ sở dữ liệu.');
     throw new Error('Database connection failed', { cause: err });
   }
 
@@ -23,9 +23,9 @@ async function start(options = {}) {
     if (pong !== 'PONG') {
       throw new Error('Redis ping response invalid');
     }
-    console.log('✅ Đã kết nối Redis thành công!');
+    console.log('[Redis] Kết nối Redis thành công.');
   } catch (err) {
-    console.error('❌ Khởi động thất bại: Không thể kết nối Redis.');
+    console.error('[Redis] Khởi động thất bại: Không thể kết nối Redis.');
     if (redis && redis.isOpen) {
       await closeRedis();
     }
@@ -37,7 +37,7 @@ async function start(options = {}) {
     const emailService = options.emailService || require('./services/emailService');
     emailService.assertConfiguration();
   } catch (err) {
-    console.error(`❌ Khởi động thất bại: ${err.message}`);
+    console.error(`[Email] Khởi động thất bại: ${err.message}`);
     if (redis && redis.isOpen) {
       await closeRedis();
     }

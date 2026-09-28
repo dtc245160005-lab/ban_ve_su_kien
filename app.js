@@ -5,6 +5,7 @@ const defaultDb = require('./db');
 const { getRedis: defaultGetRedis, redisClient } = require('./lib/redis');
 const { createRedisAuthStore } = require('./services/redisAuthStore');
 const defaultAuthRouter = require('./routes/auth');
+const defaultEventsModule = require('./routes/events');
 const { secure, apiFallbackForbidden } = require('./middleware/routeRegistry');
 
 function createApp(options = {}) {
@@ -74,30 +75,25 @@ function createApp(options = {}) {
   authRouter._mountPrefix = '/api/auth';
   app.use('/api/auth', authRouter);
 
-  // API 1: Lấy danh sách sự kiện (public)
-  secure(app, 'get', '/api/events', 'public', async (_req, res) => {
-    try {
-      const events = await db('events').select('*');
-      res.status(200).json({ success: true, data: events });
-    } catch (err) {
-      console.error('Lỗi khi lấy danh sách sự kiện:', err.message);
-      res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
-    }
-  });
+  // Routes sự kiện công khai (chỉ xem các sự kiện đã published)
+  const publicEventsRouter =
+    options.publicEventsRouter ||
+    defaultEventsModule.createPublicEventsRouter({
+      db,
+      eventService: options.eventService,
+    });
+  publicEventsRouter._mountPrefix = '/api/events';
+  app.use('/api/events', publicEventsRouter);
 
-  // API 2: Thêm mới một sự kiện (organizer, admin)
-  secure(app, 'post', '/api/events', { roles: ['organizer', 'admin'] }, async (req, res) => {
-    try {
-      const { title, description, price, total_tickets } = req.body;
-      const [newEvent] = await db('events')
-        .insert({ title, description, price, total_tickets })
-        .returning('*');
-      res.status(201).json({ success: true, data: newEvent });
-    } catch (err) {
-      console.error('Lỗi khi tạo sự kiện:', err.message);
-      res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
-    }
-  });
+  // Routes quản lý sự kiện và suất diễn dành cho ban tổ chức và admin
+  const organizerEventsRouter =
+    options.organizerEventsRouter ||
+    defaultEventsModule.createOrganizerEventsRouter({
+      db,
+      eventService: options.eventService,
+    });
+  organizerEventsRouter._mountPrefix = '/api/organizer';
+  app.use('/api/organizer', organizerEventsRouter);
 
   // Mặc định đóng: mọi request vào /api/* không khớp route nào đã khai báo thì trả 403
   app.use('/api', apiFallbackForbidden);
