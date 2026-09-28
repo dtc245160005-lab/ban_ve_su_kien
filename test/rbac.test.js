@@ -144,7 +144,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
     };
 
     try {
-      const res = await fetch(`${baseUrl}/api/events`, {
+      const res = await fetch(`${baseUrl}/api/events?email=a@b.com&token=abc123`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,6 +165,7 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
 
       // Bắt đúng một dòng log JSON
       assert.strictEqual(capturedLogs.length, 1, 'Phải có đúng một dòng log forbidden');
+      const rawLog = capturedLogs[0].raw;
       const logEntry = capturedLogs[0].parsed;
       assert.strictEqual(logEntry.event, 'forbidden');
       assert.strictEqual(logEntry.userId, buyerUser.id);
@@ -173,7 +174,11 @@ describe('T-06 Role-Based Access Control (RBAC) & Route Registry Tests', () => {
       assert.ok(logEntry.at);
       assert.ok(!Number.isNaN(Date.parse(logEntry.at)));
 
-      // Bảo mật: không chứa email, token, cookie
+      // Bảo mật: không chứa email, token trong URL query hoặc trong trường log
+      assert.ok(!rawLog.includes('a@b.com'), 'Log không được chứa email query');
+      assert.ok(!rawLog.includes('abc123'), 'Log không được chứa token query');
+      assert.ok(!rawLog.includes('email='), 'Log không được chứa param email=');
+      assert.ok(!rawLog.includes('token='), 'Log không được chứa param token=');
       assert.strictEqual(logEntry.email, undefined);
       assert.strictEqual(logEntry.cookie, undefined);
       assert.strictEqual(logEntry.token, undefined);

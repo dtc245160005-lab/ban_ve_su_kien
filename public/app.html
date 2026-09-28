@@ -42,6 +42,7 @@
     </main>
 
     <script src="./api.js"></script>
+    <script src="./menu.js"></script>
     <script>
       const summary = document.getElementById('userSummary');
       const logoutButton = document.getElementById('logoutButton');
@@ -62,27 +63,23 @@
 
         summary.textContent = `Tài khoản: ${user.email || user.userId || ''} (Vai trò: ${roles.join(', ') || 'Chưa có'})`;
 
-        // 1. Quản lý sự kiện: hiện cho organizer và admin
-        const canManageEvents = roles.includes('organizer') || roles.includes('admin');
+        // Gọi hàm thuần visibleMenus(), không tự viết điều kiện if theo vai trò ở giao diện
+        const activeMenus = visibleMenus(roles);
+
         if (eventManagementSection) {
-          eventManagementSection.style.display = canManageEvents ? 'block' : 'none';
+          eventManagementSection.style.display = activeMenus.includes('Quản lý sự kiện') ? 'block' : 'none';
         }
 
-        // 2. Đối soát: hiện cho accountant và admin
-        const canReconcile = roles.includes('accountant') || roles.includes('admin');
         if (reconciliationSection) {
-          reconciliationSection.style.display = canReconcile ? 'block' : 'none';
+          reconciliationSection.style.display = activeMenus.includes('Đối soát') ? 'block' : 'none';
         }
 
-        // 3. Các mục khác ẩn/hiện theo roles
-        const canCheckTickets = roles.includes('checker') || roles.includes('admin');
         if (ticketCheckSection) {
-          ticketCheckSection.style.display = canCheckTickets ? 'block' : 'none';
+          ticketCheckSection.style.display = activeMenus.includes('Soát vé') ? 'block' : 'none';
         }
 
-        const isBuyer = roles.includes('buyer');
         if (buyerSection) {
-          buyerSection.style.display = isBuyer ? 'block' : 'none';
+          buyerSection.style.display = activeMenus.includes('Vé của tôi') ? 'block' : 'none';
         }
       }
 

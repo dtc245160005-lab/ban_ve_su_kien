@@ -1,11 +1,11 @@
 const express = require('express');
-const { parseCookies } = require('../lib/cookies');
 const { redisClient } = require('../lib/redis');
 const db = require('../db');
 const { createUserRepository } = require('../services/userRepository');
 const { createRedisAuthStore } = require('../services/redisAuthStore');
 const { createAuthService } = require('../services/authService');
 const { secure } = require('../middleware/routeRegistry');
+const { createAuthenticateMiddleware, getSessionToken } = require('../middleware/authenticate');
 
 function createAuthRouter(customDependencies = {}) {
   const router = express.Router();
@@ -36,6 +36,10 @@ function createAuthRouter(customDependencies = {}) {
       attemptStore,
       sessionStore,
     });
+
+  const authenticateMiddleware =
+    customDependencies.authenticateMiddleware ||
+    createAuthenticateMiddleware(sessionStore);
 
   secure(router, 'post', '/login', 'public', async (req, res) => {
     try {
@@ -71,40 +75,13 @@ function createAuthRouter(customDependencies = {}) {
     }
   });
 
-  secure(router, 'get', '/session', 'public', async (req, res) => {
-    try {
-      const cookies = parseCookies(req.headers.cookie);
-      const token = cookies[cookieName];
-
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
-        });
-      }
-
-      const session = await sessionStore.get(token);
-      if (!session) {
-        return res.status(401).json({
-          success: false,
-          message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
-        });
-      }
-
-      return res.json({ success: true, user: session });
-    } catch (error) {
-      console.error('Session error:', error.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Hệ thống đang bận. Vui lòng thử lại sau.',
-      });
-    }
+  secure(router, 'get', '/session', 'public', authenticateMiddleware, async (req, res) => {
+    return res.json({ success: true, user: req.session || req.user });
   });
 
   secure(router, 'post', '/logout', 'public', async (req, res) => {
     try {
-      const cookies = parseCookies(req.headers.cookie);
-      const token = cookies[cookieName];
+      const token = getSessionToken(req, cookieName);
 
       if (token) {
         await sessionStore.remove(token);

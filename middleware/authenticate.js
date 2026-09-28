@@ -2,12 +2,16 @@ const { parseCookies } = require('../lib/cookies');
 const { redisClient } = require('../lib/redis');
 const { createRedisAuthStore } = require('../services/redisAuthStore');
 
+function getSessionToken(req, cookieName = process.env.SESSION_COOKIE_NAME || 'session_token') {
+  const cookies = parseCookies(req.headers?.cookie);
+  return cookies[cookieName];
+}
+
 function createAuthenticateMiddleware(customSessionStore) {
   return async function authenticate(req, res, next) {
     try {
       const cookieName = process.env.SESSION_COOKIE_NAME || 'session_token';
-      const cookies = parseCookies(req.headers?.cookie);
-      const token = cookies[cookieName];
+      const token = getSessionToken(req, cookieName);
 
       if (!token) {
         return res.status(401).json({
@@ -16,12 +20,12 @@ function createAuthenticateMiddleware(customSessionStore) {
         });
       }
 
-      const store =
+      const sessionStore =
         customSessionStore ||
         (req.app?.locals?.sessionStore) ||
         createRedisAuthStore(redisClient).sessionStore;
 
-      const session = await store.get(token);
+      const session = await sessionStore.get(token);
 
       if (!session) {
         return res.status(401).json({
@@ -32,8 +36,10 @@ function createAuthenticateMiddleware(customSessionStore) {
 
       req.user = {
         id: session.userId,
+        userId: session.userId,
         roles: Array.isArray(session.roles) ? session.roles : [],
       };
+      req.session = session;
 
       return next();
     } catch (err) {
@@ -51,3 +57,4 @@ const defaultAuthenticate = createAuthenticateMiddleware();
 module.exports = defaultAuthenticate;
 module.exports.authenticate = defaultAuthenticate;
 module.exports.createAuthenticateMiddleware = createAuthenticateMiddleware;
+module.exports.getSessionToken = getSessionToken;

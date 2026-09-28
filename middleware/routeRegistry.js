@@ -1,33 +1,18 @@
 const defaultAuthenticate = require('./authenticate');
+const { logEvent } = require('../lib/logger');
 
 const routeRegistry = {
   logger: console,
 };
 
-function logForbidden({ userId = null, method, path, at = new Date().toISOString() }) {
-  const payload = {
-    event: 'forbidden',
-    userId: userId !== undefined && userId !== null ? userId : null,
-    method: String(method || '').toUpperCase(),
-    path: String(path || ''),
-    at,
-  };
-
-  const line = JSON.stringify(payload);
-  const currentLogger = routeRegistry.logger || console;
-  if (typeof currentLogger.warn === 'function') {
-    currentLogger.warn(line);
-  } else if (typeof currentLogger.log === 'function') {
-    currentLogger.log(line);
-  }
-
-  return payload;
+function logForbidden({ userId = null, method, path, at }) {
+  return logEvent('forbidden', { userId, method, path, at });
 }
 
 function sendForbidden(req, res, customMessage) {
   const userId = req.user?.id || null;
   const method = req.method;
-  const path = req.originalUrl || (req.baseUrl ? req.baseUrl + req.path : req.path);
+  const path = req.baseUrl ? req.baseUrl + req.path : req.path;
 
   logForbidden({ userId, method, path });
 
@@ -40,7 +25,7 @@ function sendForbidden(req, res, customMessage) {
 function apiFallbackForbidden(req, res) {
   const userId = req.user?.id || null;
   const method = req.method;
-  const path = req.originalUrl || (req.baseUrl ? req.baseUrl + req.path : req.path);
+  const path = req.baseUrl ? req.baseUrl + req.path : req.path;
 
   logForbidden({ userId, method, path });
 
