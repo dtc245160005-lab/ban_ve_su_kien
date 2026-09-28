@@ -130,25 +130,16 @@ npm run seed:run
 
 ---
 
-## 5. Kiểm Thử Task T-04
+## 5. Kiểm Thử Hệ Thống (Testing)
 
-Dự án cung cấp bộ kiểm thử tự động toàn diện dành riêng cho T-04:
+Dự án sử dụng test runner chuẩn của Node.js (`node --test`), bao gồm kiểm tra cấu trúc CSDL và các tính năng nghiệp vụ:
 ```bash
-npm run test:t04
+npm test
 ```
 
-Bộ kiểm thử thực hiện xác minh:
-1. Kết nối PostgreSQL an toàn.
-2. Trạng thái migration trước khi chạy.
-3. Chạy migration T-04 và kiểm tra cấu trúc 3 bảng.
-4. Chạy seed lần thứ nhất.
-5. Chạy seed lần thứ hai (xác nhận tính idempotent).
-6. Tồn tại đủ 5 roles bắt buộc và 2 demo users (admin, organizer) được phân quyền chuẩn (hỗ trợ DB có thêm dữ liệu khác).
-7. `password_hash` chuẩn Argon2id, không lưu mật khẩu thô và pass hàm `argon2.verify()`.
-8. Ràng buộc `UNIQUE` của `email` trong bảng `users` (dùng transaction rollback an toàn).
-9. Khóa chính ghép `(user_id, role_id)` trong bảng `user_roles` (dùng transaction rollback an toàn).
-10. Kiểm tra an toàn rollback migration: xác minh batch độc lập trong `knex_migrations` trước khi rollback, chỉ xóa 3 bảng T-04 và bảo toàn bảng `events`, sau đó migrate lại.
-11. Chạy seed và kiểm tra lại lần cuối sau khi migrate lại.
+Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
+- `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles seed và xác thực mật khẩu Argon2id của 2 tài khoản demo.
+- Các bài kiểm thử khác: `test/authService.test.js`, `test/rbac.test.js`, `test/startup.test.js`, `test/health.test.js`, `test/logger.test.js`, `test/api-client.test.js`, `test/menu.test.js`.
 
 ---
 
@@ -170,3 +161,16 @@ Bộ kiểm thử thực hiện xác minh:
   - `POST /api/auth/login`: Nhận `{ email, password }`, trả về 200 kèm cookie phiên khi đúng.
   - `GET /api/auth/session`: Đọc cookie phiên, trả về thông tin phiên người dùng hoặc 401 khi hết hạn.
   - `POST /api/auth/logout`: Xoá session trong Redis và xoá cookie ở trình duyệt.
+
+---
+
+## 7. Sao Lưu Cơ Sở Dữ Liệu (Backup)
+
+Dự án cung cấp script sao lưu tự động chạy đa nền tảng (Windows, macOS, Linux):
+```bash
+npm run backup
+```
+
+- Sử dụng tiện ích `pg_dump` dựa trên cấu hình `DB_CONNECTION_STRING`.
+- File sao lưu được lưu tự động vào thư mục `backups/` theo định dạng `backup_YYYYMMDD_HHMMSS.sql`.
+- Đảm bảo an toàn thông tin: không in chuỗi kết nối chứa mật khẩu ra log.

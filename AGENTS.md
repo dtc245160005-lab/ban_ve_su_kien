@@ -13,10 +13,14 @@ Hệ thống được tổ chức theo cấu trúc đơn giản, tập trung t�
 - `middleware/`: Các middleware dùng chung (xác thực, phân quyền, validation, error handler...).
 - `migrations/`: Quản lý schema database bằng Knex migrations.
 - `seeds/`: Dữ liệu mẫu (roles hệ thống, tài khoản demo).
+- `scripts/`: Các script tiện ích, bảo trì và tự động hóa hệ thống (backup, verify...).
 - `public/`: Tài nguyên tĩnh (static files) phục vụ web nếu có.
 - `test/`: Toàn bộ các bài kiểm thử tự động (`*.test.js` chạy qua `node --test`).
 
-> **NGUYÊN TẮC BẮT BUỘC:** KHÔNG tạo ứng dụng con, monorepo lồng nhau, hoặc tạo thêm bất kỳ file `package.json` thứ hai nào. Tất cả dependencies và scripts được quản lý duy nhất tại `package.json` ở thư mục gốc.
+> **NGUYÊN TẮC BẮT BUỘC:**
+> - KHÔNG tạo ứng dụng con, monorepo lồng nhau, hoặc tạo thêm bất kỳ file `package.json` thứ hai nào. Tất cả dependencies và scripts được quản lý duy nhất tại `package.json` ở thư mục gốc.
+> - Không đặt file test hay script ở thư mục gốc; test để trong `test/`, script để trong `scripts/`.
+> - PR luôn nhắm vào `develop-v2`, không nhắm vào `main`.
 
 ---
 
@@ -72,3 +76,5 @@ Một task/PR chỉ được coi là hoàn thành khi đáp ứng đủ các ti�
 2. **CI xanh:** GitHub Actions vượt qua tất cả các bước (`npm ci`, `npm run verify`, `npm audit`).
 3. **Có test:** Đầy đủ test cho các nhánh logic mới, hàm mới hoặc endpoint mới trong `test/`.
 4. **Tài liệu:** File mẫu `.env.example` và `README.md` được cập nhật đầy đủ ngay khi có biến môi trường mới hoặc thay đổi cách chạy dự án.
+5. **Nhánh đích:** PR luôn nhắm vào `develop-v2`, không nhắm vào `main`.
+
