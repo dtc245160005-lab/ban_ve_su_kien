@@ -1,5 +1,8 @@
 const { test, describe, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const net = require('node:net');
+const path = require('node:path');
 const argon2 = require('argon2');
 
 const testPrefix = `bvsk-startup-test:${process.pid}:`;
@@ -13,10 +16,21 @@ const { getRedis, redisClient, closeRedis } = require('../lib/redis');
 const {
   createAuthService,
   emailKey,
+  ipKey,
 } = require('../services/authService');
 const { createRedisAuthStore, sha256 } = require('../services/redisAuthStore');
 const { createAuthRouter } = require('../routes/auth');
 const { getSafeRedirectUrl } = require('../public/login');
+
+function getRandomPort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close((err) => (err ? reject(err) : resolve(port)));
+    });
+  });
+}
 
 async function cleanTestKeys(client) {
   if (!client || !client.isOpen) return;
@@ -72,12 +86,76 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
     await cleanTestKeys(redisClient);
   });
 
-  test('1. start({ port: 0 }) ngay khi resolve bắn đồng thời 20 request login: không request nào trả 500 (tất cả 401 hoặc 429)', async () => {
-    const server = await start({ port: 0 });
-    const port = server.address().port;
+  test('1. Khởi động nguội cô lập: child_process.spawn gọi node index.js với PORT ngẫu nhiên, bắn 20 POST /api/auth/login song song không nhận 500', async () => {
+    const childPort = await getRandomPort();
+    const childPrefix = `${testPrefix}cold:${childPort}:`;
+
+    // Khởi chạy tiến trình con mới độc lập hoàn toàn, không dùng client đã kết nối sẵn
+    const child = spawn(process.execPath, [path.resolve(__dirname, '../index.js')], {
+      env: {
+        ...process.env,
+        PORT: String(childPort),
+        REDIS_KEY_PREFIX: childPrefix,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
     try {
+      // Chờ tiến trình con in dòng "Server API đang chạy" hoặc thăm dò /health trả về 200
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Hết thời gian chờ tiến trình con khởi động (10s)'));
+        }, 10000);
+
+        let resolved = false;
+        const markReady = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            resolve();
+          }
+        };
+
+        child.stdout.on('data', (chunk) => {
+          const text = chunk.toString();
+          if (text.includes('Server API đang chạy') || text.includes('listening')) {
+            markReady();
+          }
+        });
+
+        child.once('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+
+        child.once('exit', (code) => {
+          if (!resolved) {
+            clearTimeout(timeout);
+            reject(new Error(`Tiến trình con thoát sớm với mã: ${code}`));
+          }
+        });
+
+        // Thăm dò /health dự phòng
+        const interval = setInterval(async () => {
+          if (resolved) {
+            clearInterval(interval);
+            return;
+          }
+          try {
+            const res = await fetch(`http://127.0.0.1:${childPort}/health`);
+            if (res.status === 200) {
+              clearInterval(interval);
+              markReady();
+            }
+          } catch {
+            // Chưa sẵn sàng
+          }
+        }, 50);
+      });
+
+      // Bắn ngay 20 POST /api/auth/login song song
       const requests = Array.from({ length: 20 }, (_, i) =>
-        fetch(`http://127.0.0.1:${port}/api/auth/login`, {
+        fetch(`http://127.0.0.1:${childPort}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -97,7 +175,11 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
         );
       }
     } finally {
-      await new Promise((resolve) => server.close(resolve));
+      child.kill('SIGTERM');
+      await new Promise((resolve) => {
+        child.once('exit', resolve);
+        setTimeout(resolve, 2000);
+      });
     }
   });
 
@@ -171,7 +253,7 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
     }
   });
 
-  test('4. Test lỗi repository ở tầng DB trả 500 nhưng KHÔNG tăng đếm thất bại (không khoá nhầm)', async () => {
+  test('4. Test lỗi repository ở tầng DB trả 500 nhưng KHÔNG tăng đếm thất bại (cả email LẪN IP đều không tồn tại trong Redis)', async () => {
     const failingDbEmail = 'db_error_check@example.test';
     const store = createRedisAuthStore(redisClient, { prefix: testPrefix });
 
@@ -199,7 +281,10 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
       const port = s.address().port;
       const res = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Forwarded-For': '203.0.113.195',
+        },
         body: JSON.stringify({
           email: failingDbEmail,
           password: 'Password123!',
@@ -211,10 +296,25 @@ describe('T-05 Startup, Regression & Client-Side Security Tests', () => {
       assert.strictEqual(body.success, false);
       assert.strictEqual(body.message, 'Hệ thống đang bận. Vui lòng thử lại sau.');
 
-      // Kiểm tra trong Redis: bộ đếm thất bại KHÔNG được tăng
+      // 1. Assert key bộ đếm theo email KHÔNG tồn tại trong Redis
       const eKey = emailKey(failingDbEmail);
       const emailCount = await redisClient.get(`${testPrefix}auth:failed:${eKey}`);
-      assert.strictEqual(emailCount, null, 'Bộ đếm thất bại của email KHÔNG được tăng khi lỗi DB');
+      assert.strictEqual(emailCount, null, 'Key bộ đếm thất bại theo email không được tồn tại trong Redis');
+
+      // 2. Assert key bộ đếm theo IP KHÔNG tồn tại trong Redis (kể cả client IP kết nối lẫn IP trong header)
+      const ip4Key = ipKey('127.0.0.1');
+      const ip6Key = ipKey('::1');
+      const ipV4MappedKey = ipKey('::ffff:127.0.0.1');
+      const headerIpKey = ipKey('203.0.113.195');
+
+      assert.strictEqual(await redisClient.get(`${testPrefix}auth:failed:${ip4Key}`), null, 'Key bộ đếm thất bại theo IPv4 không tồn tại');
+      assert.strictEqual(await redisClient.get(`${testPrefix}auth:failed:${ip6Key}`), null, 'Key bộ đếm thất bại theo IPv6 không tồn tại');
+      assert.strictEqual(await redisClient.get(`${testPrefix}auth:failed:${ipV4MappedKey}`), null, 'Key bộ đếm thất bại theo IPv4-mapped không tồn tại');
+      assert.strictEqual(await redisClient.get(`${testPrefix}auth:failed:${headerIpKey}`), null, 'Key bộ đếm thất bại theo header IP không tồn tại');
+
+      // 3. Quét tổng thể toàn bộ prefix xem có bất kỳ key auth:failed nào không
+      const replyFailed = await redisClient.scan(0, { MATCH: `${testPrefix}auth:failed:*`, COUNT: 100 });
+      assert.strictEqual(replyFailed.keys.length, 0, 'Cả bộ đếm theo email và IP đều không có bất kỳ key auth:failed nào trong Redis');
 
       const lockSeconds = await store.attemptStore.getRemainingLockSeconds(eKey);
       assert.strictEqual(lockSeconds, 0, 'Tài khoản không được bị khoá');

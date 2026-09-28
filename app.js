@@ -1,12 +1,14 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const db = require('./db');
-const { getRedis } = require('./lib/redis');
-const authRouter = require('./routes/auth');
+const defaultDb = require('./db');
+const { getRedis: defaultGetRedis } = require('./lib/redis');
+const defaultAuthRouter = require('./routes/auth');
 
 function createApp(options = {}) {
   const app = express();
+  const db = options.db || defaultDb;
+  const getRedis = options.getRedis || defaultGetRedis;
 
   // Cấu hình trust proxy theo biến môi trường TRUST_PROXY (mặc định: false)
   const trustProxyEnv = options.trustProxy !== undefined ? options.trustProxy : process.env.TRUST_PROXY;
@@ -35,7 +37,7 @@ function createApp(options = {}) {
   app.get('/health', async (_req, res) => {
     try {
       await db.raw('SELECT 1');
-      const redis = await getRedis();
+      const redis = options.redis || (await getRedis());
       const pong = await redis.ping();
       if (pong !== 'PONG') {
         throw new Error('Redis ping not PONG');
@@ -48,7 +50,7 @@ function createApp(options = {}) {
   });
 
   // Routes xác thực
-  app.use('/api/auth', options.authRouter || authRouter);
+  app.use('/api/auth', options.authRouter || defaultAuthRouter);
 
   // API 1: Lấy danh sách sự kiện
   app.get('/api/events', async (_req, res) => {
