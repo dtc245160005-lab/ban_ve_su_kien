@@ -5,6 +5,7 @@ node_modules/
 coverage/
 *.log
 backup_*.sql
+backups/
 .active-color
 Claude outputs/
 
