@@ -11,18 +11,45 @@
       <section class="auth-card" aria-labelledby="page-title">
         <div class="brand-block">
           <div class="brand-icon" aria-hidden="true">A</div>
-          <h1 id="page-title">Đăng nhập thành công</h1>
+          <h1 id="page-title">Trang chính</h1>
           <p id="userSummary">Đang kiểm tra phiên đăng nhập...</p>
         </div>
+
+        <nav id="roleNavigation" class="menu-list" aria-label="Chức năng theo vai trò">
+          <!-- Quản lý sự kiện: chỉ hiện cho organizer và admin -->
+          <div id="eventManagementSection" class="menu-item" style="display: none;">
+            <a href="#events" class="menu-link" id="eventManagementLink">Quản lý sự kiện</a>
+          </div>
+
+          <!-- Đối soát: chỉ hiện cho accountant và admin -->
+          <div id="reconciliationSection" class="menu-item" style="display: none;">
+            <a href="#reconciliation" class="menu-link" id="reconciliationLink">Đối soát</a>
+          </div>
+
+          <!-- Soát vé: checker và admin -->
+          <div id="ticketCheckSection" class="menu-item" style="display: none;">
+            <a href="#checkin" class="menu-link" id="ticketCheckLink">Soát vé</a>
+          </div>
+
+          <!-- Vé của tôi: buyer -->
+          <div id="buyerSection" class="menu-item" style="display: none;">
+            <a href="#tickets" class="menu-link" id="buyerLink">Vé của tôi</a>
+          </div>
+        </nav>
 
         <button id="logoutButton" class="secondary-btn" type="button">Đăng xuất</button>
       </section>
     </main>
 
     <script src="./api.js"></script>
+    <script src="./menu.js"></script>
     <script>
       const summary = document.getElementById('userSummary');
       const logoutButton = document.getElementById('logoutButton');
+      const eventManagementSection = document.getElementById('eventManagementSection');
+      const reconciliationSection = document.getElementById('reconciliationSection');
+      const ticketCheckSection = document.getElementById('ticketCheckSection');
+      const buyerSection = document.getElementById('buyerSection');
 
       async function loadSession() {
         const response = await apiFetch('/api/auth/session');
@@ -31,7 +58,29 @@
         }
 
         const result = await response.json();
-        summary.textContent = `Tài khoản: ${result.user.email}`;
+        const user = result.user || {};
+        const roles = Array.isArray(user.roles) ? user.roles : [];
+
+        summary.textContent = `Tài khoản: ${user.email || user.userId || ''} (Vai trò: ${roles.join(', ') || 'Chưa có'})`;
+
+        // Gọi hàm thuần visibleMenus(), không tự viết điều kiện if theo vai trò ở giao diện
+        const activeMenus = visibleMenus(roles);
+
+        if (eventManagementSection) {
+          eventManagementSection.style.display = activeMenus.includes('Quản lý sự kiện') ? 'block' : 'none';
+        }
+
+        if (reconciliationSection) {
+          reconciliationSection.style.display = activeMenus.includes('Đối soát') ? 'block' : 'none';
+        }
+
+        if (ticketCheckSection) {
+          ticketCheckSection.style.display = activeMenus.includes('Soát vé') ? 'block' : 'none';
+        }
+
+        if (buyerSection) {
+          buyerSection.style.display = activeMenus.includes('Vé của tôi') ? 'block' : 'none';
+        }
       }
 
       logoutButton.addEventListener('click', async () => {

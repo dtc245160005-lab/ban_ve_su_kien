@@ -1,0 +1,60 @@
+const { parseCookies } = require('../lib/cookies');
+const { redisClient } = require('../lib/redis');
+const { createRedisAuthStore } = require('../services/redisAuthStore');
+
+function getSessionToken(req, cookieName = process.env.SESSION_COOKIE_NAME || 'session_token') {
+  const cookies = parseCookies(req.headers?.cookie);
+  return cookies[cookieName];
+}
+
+function createAuthenticateMiddleware(customSessionStore) {
+  return async function authenticate(req, res, next) {
+    try {
+      const cookieName = process.env.SESSION_COOKIE_NAME || 'session_token';
+      const token = getSessionToken(req, cookieName);
+
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
+        });
+      }
+
+      const sessionStore =
+        customSessionStore ||
+        (req.app?.locals?.sessionStore) ||
+        createRedisAuthStore(redisClient).sessionStore;
+
+      const session = await sessionStore.get(token);
+
+      if (!session) {
+        return res.status(401).json({
+          success: false,
+          message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
+        });
+      }
+
+      req.user = {
+        id: session.userId,
+        userId: session.userId,
+        roles: Array.isArray(session.roles) ? session.roles : [],
+      };
+      req.session = session;
+
+      return next();
+    } catch (err) {
+      console.error('Authentication error:', err.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Hệ thống đang bận. Vui lòng thử lại sau.',
+      });
+    }
+  };
+}
+
+const defaultAuthenticate = createAuthenticateMiddleware();
+
+module.exports = defaultAuthenticate;
+module.exports.authenticate = defaultAuthenticate;
+module.exports.createAuthenticateMiddleware = createAuthenticateMiddleware;
+module.exports.getSessionToken = getSessionToken;

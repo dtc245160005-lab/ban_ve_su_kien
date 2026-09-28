@@ -161,6 +161,36 @@ body {
   text-decoration: none;
 }
 
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.menu-item {
+  width: 100%;
+}
+
+.menu-link {
+  display: block;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.menu-link:hover {
+  background: #e0e7ff;
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
 @media (max-width: 480px) {
   .auth-card {
     padding: 24px 18px;
@@ -170,3 +200,4 @@ body {
     font-size: 26px;
   }
 }
+
