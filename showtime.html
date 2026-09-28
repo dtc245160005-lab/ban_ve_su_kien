@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>T-16: Quản lý Suất Diễn</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 30px; background-color: #f8fafc; color: #334155; }
+    h2 { color: #0f172a; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    th, td { padding: 14px 18px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th { background: #1e293b; color: #ffffff; font-weight: 600; }
+    tr:hover { background-color: #f1f5f9; }
+    
+    /* Nhãn trạng thái */
+    .badge { padding: 5px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; display: inline-block; text-transform: uppercase; }
+    .badge-nhap { background-color: #e2e8f0; color: #475569; }
+    .badge-dang_ban { background-color: #dcfce7; color: #15803d; }
+    .badge-da_dong { background-color: #fee2e2; color: #b91c1c; }
+
+    /* Nút thao tác */
+    button { padding: 7px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+    .btn-open { background-color: #16a34a; color: white; }
+    .btn-open:hover:not(:disabled) { background-color: #15803d; }
+    .btn-close { background-color: #dc2626; color: white; }
+    .btn-close:hover { background-color: #b91c1c; }
+    
+    /* Trạng thái nút bị mờ khi chưa có ghế */
+    button:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+    .note-reason { color: #ef4444; font-size: 13px; margin-left: 10px; font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <h2>Danh Sách Suất Diễn</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 100px;">Mã Suất</th>
+        <th>Tên Suất Diễn</th>
+        <th>Sơ Đồ Ghế</th>
+        <th>Trạng Thái</th>
+        <th style="width: 280px;">Hành Động</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+
+  <script>
+    // Dữ liệu suất diễn mẫu theo đặc tả
+    const showtimes = [
+      { id: 101, name: "Suất Diễn 1 (Chưa tạo ghế)", hasSeats: false, status: "nháp" },
+      { id: 102, name: "Suất Diễn 2 (Đã có ghế)", hasSeats: true, status: "nháp" },
+      { id: 103, name: "Suất Diễn 3 (Đang mở bán)", hasSeats: true, status: "đang bán" },
+      { id: 104, name: "Suất Diễn 4 (Đã kết thúc)", hasSeats: true, status: "đã đóng" }
+    ];
+
+    function renderTable() {
+      const tbody = document.getElementById("table-body");
+      tbody.innerHTML = "";
+
+      showtimes.forEach(item => {
+        const tr = document.createElement("tr");
+
+        // Gán class cho nhãn trạng thái
+        let badgeClass = "badge-nhap";
+        if (item.status === "đang bán") badgeClass = "badge-dang_ban";
+        if (item.status === "đã đóng") badgeClass = "badge-da_dong";
+
+        // Logic hiển thị nút theo T-16
+        let actionContent = "";
+        if (item.status === "nháp") {
+          if (!item.hasSeats) {
+            // Nút bị mờ/vô hiệu hóa kèm chú thích vì sao
+            actionContent = `
+              <button class="btn-open" disabled title="Chưa có sơ đồ ghế">Mở bán</button>
+              <span class="note-reason">(Chưa có sơ đồ ghế)</span>
+            `;
+          } else {
+            actionContent = `<button class="btn-open" onclick="handleOpenSale(${item.id})">Mở bán</button>`;
+          }
+        } else if (item.status === "đang bán") {
+          actionContent = `<button class="btn-close" onclick="handleCloseSale(${item.id})">Đóng bán</button>`;
+        } else {
+          actionContent = `<span style="color: #94a3b8; font-size: 14px;">Đã hoàn thành</span>`;
+        }
+
+        tr.innerHTML = `
+          <td>#${item.id}</td>
+          <td><strong>${item.name}</strong></td>
+          <td>${item.hasSeats ? '<span style="color: #16a34a;">✔ Đã có ghế</span>' : '<span style="color: #ef4444;">✖ Chưa có ghế</span>'}</td>
+          <td><span class="badge ${badgeClass}">${item.status}</span></td>
+          <td>${actionContent}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Bấm Mở bán: Đổi sang đang bán ngay lập tức
+    function handleOpenSale(id) {
+      const item = showtimes.find(s => s.id === id);
+      if (item && item.hasSeats) {
+        item.status = "đang bán";
+        renderTable();
+      }
+    }
+
+    // Bấm Đóng bán: Đổi sang đã đóng ngay lập tức
+    function handleCloseSale(id) {
+      const item = showtimes.find(s => s.id === id);
+      if (item) {
+        item.status = "đã đóng";
+        renderTable();
+      }
+    }
+
+    // Khởi tạo bảng ban đầu
+    renderTable();
+  </script>
+</body>
+</html>
