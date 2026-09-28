@@ -6,4 +6,5 @@ coverage/
 *.log
 backup_*.sql
 .active-color
+Claude outputs/
 

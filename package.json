@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Chưa có bài test nào\" && exit 0",
+    "start": "node index.js",
+    "test": "node --test",
+    "lint": "eslint .",
+    "verify": "node scripts/verify.js",
     "migrate:latest": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "seed:run": "knex seed:run",
@@ -20,5 +23,10 @@
     "express": "^5.2.1",
     "knex": "^3.3.0",
     "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0"
   }
 }

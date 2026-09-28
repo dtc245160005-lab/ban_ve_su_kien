@@ -1,12 +1,32 @@
-# Hệ Thống Bán Vé Sự Kiện - Task T-04: Users, Roles và Seed
+# Hệ Thống Bán Vé Sự Kiện
 
-Tài liệu hướng dẫn cấu hình môi trường, cài đặt, chạy migration, seed dữ liệu và kiểm thử cho module Users, Roles và Seed (Task T-04).
+Dự án backend bán vé sự kiện xây dựng trên Node.js, Express, Knex, PostgreSQL và Redis.
+
+---
+
+## Chạy dự án
+
+Thực hiện lần lượt các lệnh sau để khởi động và kiểm tra hệ thống:
+
+```bash
+# 1. Khởi động các dịch vụ PostgreSQL và Redis
+docker compose up -d db redis
+
+# 2. Cài đặt các gói phụ thuộc theo package-lock.json
+npm ci
+
+# 3. Chạy kiểm tra tự động toàn diện (tạo DB tạm, migrate, rollback, seed, lint, test, dọn dẹp DB)
+npm run verify
+
+# 4. Khởi động ứng dụng
+npm start
+```
 
 ---
 
 ## 1. Yêu Cầu & Biến Môi Trường
 
-Hệ thống sử dụng các biến môi trường để cấu hình kết nối cơ sở dữ liệu PostgreSQL và tài khoản demo ban đầu.
+Hệ thống sử dụng các biến môi trường để cấu hình kết nối cơ sở dữ liệu PostgreSQL, Redis và tài khoản demo ban đầu.
 
 ### Tạo file cấu hình `.env` từ file mẫu:
 
@@ -31,6 +51,7 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | `POSTGRES_USER` | Tên người dùng CSDL | `postgres` |
 | `POSTGRES_PASSWORD` | Mật khẩu người dùng CSDL | `secret` |
 | `POSTGRES_DB` | Tên cơ sở dữ liệu | `ban_ve_su_kien` |
+| `REDIS_URL` | URL kết nối Redis | `redis://localhost:6379` |
 | `DEMO_ADMIN_EMAIL` | Email tài khoản demo Admin | `admin@example.com` |
 | `DEMO_ADMIN_PASSWORD` | Mật khẩu tài khoản demo Admin | `Admin@123456` |
 | `DEMO_ORGANIZER_EMAIL` | Email tài khoản demo Organizer | `organizer@example.com` |
