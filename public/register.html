@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng ký tài khoản</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="register-title">
+        <div class="brand-block">
+          <div class="brand-icon" aria-hidden="true">A</div>
+          <h1 id="register-title">Đăng ký tài khoản</h1>
+          <p>Tạo tài khoản để đặt vé và tham gia sự kiện</p>
+        </div>
+
+        <div id="successBox" class="message success" role="status" aria-live="polite" hidden></div>
+
+        <form id="registerForm" class="auth-form" novalidate>
+          <div class="field-group">
+            <label for="fullName">Họ và tên</label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              autocomplete="name"
+              placeholder="Nguyễn Văn A"
+              required
+            />
+            <div id="fullNameError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div class="field-group">
+            <label for="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              placeholder="example@email.com"
+              required
+            />
+            <div id="emailError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div class="field-group">
+            <label for="password">Mật khẩu</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Từ 8 đến 128 ký tự"
+              required
+            />
+            <div id="passwordError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div id="messageBox" class="message error" role="alert" aria-live="polite" hidden></div>
+
+          <button id="submitButton" class="primary-btn" type="submit">Đăng ký</button>
+        </form>
+
+        <p class="footer-text">
+          Đã có tài khoản?
+          <a href="/login.html">Đăng nhập</a>
+        </p>
+      </section>
+    </main>
+
+    <script src="./registerForm.js"></script>
+    <script src="./register.js" defer></script>
+  </body>
+</html>

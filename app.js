@@ -67,6 +67,8 @@ function createApp(options = {}) {
       db,
       redisClient: options.redis || redisClient,
       sessionStore: app.locals.sessionStore,
+      activationService: options.activationService,
+      emailService: options.emailService,
     });
   authRouter._mountPrefix = '/api/auth';
   app.use('/api/auth', authRouter);

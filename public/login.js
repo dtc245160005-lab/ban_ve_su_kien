@@ -26,6 +26,48 @@ function getSafeRedirectUrl(fallback = '/app.html') {
   return fallback;
 }
 
+function showAccountNotActive(message, email) {
+  if (!messageBox) return;
+  messageBox.innerHTML = '';
+  messageBox.className = 'message error';
+
+  const textP = document.createElement('p');
+  textP.textContent = message;
+  messageBox.appendChild(textP);
+
+  const resendBtn = document.createElement('button');
+  resendBtn.type = 'button';
+  resendBtn.className = 'secondary-btn';
+  resendBtn.style.marginTop = '8px';
+  resendBtn.style.width = '100%';
+  resendBtn.style.padding = '8px 12px';
+  resendBtn.style.cursor = 'pointer';
+  resendBtn.textContent = 'Gửi lại email kích hoạt';
+
+  resendBtn.addEventListener('click', async () => {
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Đang gửi...';
+    try {
+      const res = await fetch('/api/auth/resend-activation', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      messageBox.className = 'message success';
+      messageBox.textContent =
+        data.message || 'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.';
+    } catch {
+      messageBox.className = 'message error';
+      messageBox.textContent = 'Không thể gửi lại email lúc này. Vui lòng thử lại sau.';
+    }
+  });
+
+  messageBox.appendChild(resendBtn);
+  messageBox.hidden = false;
+}
+
 if (form) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -53,7 +95,14 @@ if (form) {
       const result = await response.json();
 
       if (!response.ok) {
-        showMessage(result.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+        if (result.code === 'ACCOUNT_NOT_ACTIVE') {
+          showAccountNotActive(
+            result.message || 'Tài khoản chưa được kích hoạt.',
+            email
+          );
+        } else {
+          showMessage(result.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+        }
         return;
       }
 

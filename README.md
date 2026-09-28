@@ -63,6 +63,14 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | `DEMO_ADMIN_PASSWORD` | Mật khẩu tài khoản demo Admin | `Admin@123456` |
 | `DEMO_ORGANIZER_EMAIL` | Email tài khoản demo Organizer | `organizer@example.com` |
 | `DEMO_ORGANIZER_PASSWORD` | Mật khẩu tài khoản demo Organizer | `Organizer@123456` |
+| `APP_BASE_URL` | Địa chỉ gốc của ứng dụng web | `http://localhost:8090` |
+| `MAIL_TRANSPORT` | Phương thức gửi email (`dev` hoặc `smtp`) | `dev` |
+| `SMTP_HOST` | Địa chỉ máy chủ SMTP (khi dùng `smtp`) | `smtp.example.com` |
+| `SMTP_PORT` | Cổng SMTP | `587` |
+| `SMTP_USER` | Tên người dùng SMTP | `user@example.com` |
+| `SMTP_PASS` | Mật khẩu SMTP | `secret` |
+| `SMTP_SECURE` | Cấu hình SSL/TLS cho SMTP (`true`/`false`) | `false` |
+| `MAIL_FROM` | Địa chỉ người gửi hiển thị | `"Ban Ve" <no-reply@example.com>` |
 
 > **Lưu ý bảo mật:** Tuyệt đối không commit file `.env` chứa mật khẩu thật vào Git repository.
 
@@ -138,6 +146,8 @@ npm test
 ```
 
 Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
+- `test/register.test.js`: Kiểm thử luồng đăng ký người mua, kiểm tra dữ liệu, chống timing attack, concurrency race condition và bảo mật log.
+- `test/activation.test.js`: Kiểm thử kích hoạt tài khoản atomic, token hết hạn (410), đã dùng (409), rate limit gửi lại qua Redis, và đăng nhập với tài khoản chưa kích hoạt (403 ACCOUNT_NOT_ACTIVE).
 - `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles seed và xác thực mật khẩu Argon2id của 2 tài khoản demo.
 - Các bài kiểm thử khác: `test/authService.test.js`, `test/rbac.test.js`, `test/startup.test.js`, `test/health.test.js`, `test/logger.test.js`, `test/api-client.test.js`, `test/menu.test.js`.
 
@@ -146,7 +156,7 @@ Tất cả các bài kiểm thử tự động được đặt trong thư mục 
 ## 6. Chức Năng Đăng Nhập & Quản Lý Phiên (T-05 / S-02)
 
 - **Mật khẩu & Chống timing attack:** Xác thực bằng Argon2id (`argon2.argon2id`) kết hợp dummy hash khi email không tồn tại nhằm đồng đều thời gian phản hồi.
-- **Bảo mật phản hồi:** Cùng trả về thông báo lỗi `Email hoặc mật khẩu không đúng.` (HTTP 401) khi email không tồn tại hoặc mật khẩu sai, hoặc tài khoản chưa kích hoạt (`is_active = false`).
+- **Bảo mật phản hồi:** Trả về thông báo lỗi `Email hoặc mật khẩu không đúng.` (HTTP 401) khi email không tồn tại hoặc mật khẩu sai. Khi mật khẩu đúng nhưng tài khoản chưa kích hoạt (`is_active = false`), trả về HTTP 403 `ACCOUNT_NOT_ACTIVE` kèm hướng dẫn kích hoạt (không tăng bộ đếm khoá sai mật khẩu).
 - **Khoá tạm thời chống dò mật khẩu:**
   - Khoá theo email: sau 5 lần đăng nhập sai trong vòng 15 phút.
   - Khoá theo IP: sau 20 lần đăng nhập sai từ cùng một IP trong vòng 15 phút.
@@ -174,3 +184,26 @@ npm run backup
 - Sử dụng tiện ích `pg_dump` dựa trên cấu hình `DB_CONNECTION_STRING`.
 - File sao lưu được lưu tự động vào thư mục `backups/` theo định dạng `backup_YYYYMMDD_HHMMSS.sql`.
 - Đảm bảo an toàn thông tin: không in chuỗi kết nối chứa mật khẩu ra log.
+
+---
+
+## 8. Đăng Ký & Kích Hoạt Tài Khoản (T-07, T-08 / S-03)
+
+- **Đăng ký an toàn (`POST /api/auth/register`):**
+  - Nhận `email`, `password`, `full_name`. Kiểm tra định dạng dữ liệu đầu vào.
+  - Tạo tài khoản với vai trò mặc định `buyer` và trạng thái `is_active = false`.
+  - Sinh mã kích hoạt ngẫu nhiên 32 bytes (base64url), lưu hash SHA-256 vào bảng `email_activation_tokens` với thời hạn 24 giờ.
+  - **Chống lộ thông tin:** Luôn trả về HTTP 202 cùng thông báo chung `"Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư."` bất kể email mới hay đã tồn tại (đồng thời chạy dummy hash để cân bằng thời gian phản hồi).
+  - **Xử lý đồng thời:** Xử lý race condition an toàn qua ràng buộc unique, trả về 202 và không gây lỗi 500 khi có nhiều request đăng ký cùng lúc.
+- **Kích hoạt tài khoản (`POST /api/auth/activate`):**
+  - Trang `public/activate.html` đọc token từ URL (`#token=...` hoặc `?token=...`), tự động xóa token khỏi thanh địa chỉ và gọi API `POST /api/auth/activate`.
+  - Sử dụng một câu lệnh SQL atomic duy nhất (`UPDATE ... RETURNING`) để ngăn chặn tuyệt đối tình trạng kích hoạt trùng lặp.
+  - Trả về HTTP 200 khi thành công, HTTP 409 khi token đã dùng, HTTP 410 khi token hết hạn, HTTP 400 khi token không hợp lệ.
+- **Gửi lại email kích hoạt (`POST /api/auth/resend-activation`):**
+  - Giới hạn tối đa 5 lần gửi lại mỗi giờ cho một email (quản lý qua Redis).
+  - Vô hiệu hoá các token cũ còn hạn của người dùng trước khi sinh token mới.
+  - Luôn trả về HTTP 202 với thông báo chung.
+- **Dịch vụ Email (`services/emailService.js`):**
+  - Môi trường dev/test: In nội dung email kèm liên kết kích hoạt ra console dạng khối `[DEV MAIL]`.
+  - Môi trường production: Gửi email thực qua giao thức SMTP sử dụng `nodemailer`. Kiểm tra cấu hình bắt buộc khi ứng dụng khởi động.
+
