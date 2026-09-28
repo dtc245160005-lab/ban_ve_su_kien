@@ -2,11 +2,23 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const db = require('./db');
-const redisClient = require('./lib/redis');
+const { getRedis } = require('./lib/redis');
 const authRouter = require('./routes/auth');
 
 const app = express();
 const port = process.env.PORT || 8090;
+
+// Cấu hình trust proxy theo biến môi trường TRUST_PROXY (mặc định: false)
+const trustProxyEnv = process.env.TRUST_PROXY;
+let trustProxy = false;
+if (trustProxyEnv === 'true') {
+  trustProxy = true;
+} else if (trustProxyEnv && !Number.isNaN(Number(trustProxyEnv))) {
+  trustProxy = Number(trustProxyEnv);
+} else if (trustProxyEnv && trustProxyEnv !== 'false') {
+  trustProxy = trustProxyEnv;
+}
+app.set('trust proxy', trustProxy);
 
 // Middleware để đọc dữ liệu dạng JSON từ client gửi lên
 app.use(express.json({ limit: '20kb' }));
@@ -60,9 +72,7 @@ if (require.main === module) {
       console.error('❌ Lỗi kết nối PostgreSQL:', err.message);
     }
     try {
-      if (!redisClient.isOpen) {
-        await redisClient.connect();
-      }
+      await getRedis();
       console.log('✅ Đã kết nối Redis thành công!');
     } catch (err) {
       console.error('❌ Lỗi kết nối Redis:', err.message);

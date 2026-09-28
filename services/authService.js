@@ -68,12 +68,9 @@ function createAuthService({
       };
     }
 
-    let user = null;
-    try {
-      user = await userRepository.findByEmail(email);
-    } catch {
-      // Giữ user = null nếu có lỗi truy vấn
-    }
+    // Không bọc catch để nếu findByEmail ném lỗi thì ném lên để route trả 500
+    // và TUYỆT ĐỐI không ghi nhận lần sai vào attemptStore
+    const user = await userRepository.findByEmail(email);
 
     const passwordHash = user?.passwordHash || dummyPasswordHash;
     let passwordMatches = false;
@@ -99,8 +96,7 @@ function createAuthService({
 
     const session = await sessionStore.create({
       userId: user.id,
-      email: user.email,
-      role: user.role || null,
+      roles: user.roles || [],
     });
 
     return {
@@ -113,7 +109,7 @@ function createAuthService({
         user: {
           id: user.id,
           email: user.email,
-          role: user.role || null,
+          roles: user.roles || [],
         },
       },
     };

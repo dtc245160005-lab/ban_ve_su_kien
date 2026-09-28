@@ -5,7 +5,18 @@ function toPositiveInteger(value, fallback) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
 function createRedisAuthStore(redisClient, options = {}) {
+  const prefix =
+    options.prefix !== undefined
+      ? options.prefix
+      : process.env.REDIS_KEY_PREFIX !== undefined
+        ? process.env.REDIS_KEY_PREFIX
+        : 'bvsk:';
+
   const maxFailedAttempts = toPositiveInteger(
     options.maxFailedAttempts || process.env.LOGIN_MAX_FAILED_ATTEMPTS,
     5,
@@ -23,9 +34,9 @@ function createRedisAuthStore(redisClient, options = {}) {
     8 * 60 * 60,
   );
 
-  const failedKey = (key) => `auth:failed:${key}`;
-  const lockKey = (key) => `auth:locked:${key}`;
-  const sessionKey = (token) => `auth:session:${token}`;
+  const failedKey = (key) => `${prefix}auth:failed:${key}`;
+  const lockKey = (key) => `${prefix}auth:locked:${key}`;
+  const sessionKey = (token) => `${prefix}session:${sha256(token)}`;
 
   const attemptStore = {
     async getRemainingLockSeconds(key) {
@@ -37,11 +48,12 @@ function createRedisAuthStore(redisClient, options = {}) {
     async recordFailure(key, maxAttempts = maxFailedAttempts, duration = lockSeconds) {
       if (!key) return 0;
       const redisKey = failedKey(key);
-      const failures = await redisClient.incr(redisKey);
 
-      if (failures === 1) {
-        await redisClient.expire(redisKey, duration);
-      }
+      // MULTI (INCR + EXPIRE với tham số NX) để đặt TTL nguyên tử
+      const multi = redisClient.multi();
+      multi.incr(redisKey);
+      multi.expire(redisKey, duration, 'NX');
+      const [failures] = await multi.exec();
 
       if (failures >= maxAttempts) {
         await redisClient.set(lockKey(key), '1', { EX: duration });
@@ -86,6 +98,7 @@ function createRedisAuthStore(redisClient, options = {}) {
   return {
     attemptStore,
     sessionStore,
+    prefix,
     maxFailedAttempts,
     maxIpFailedAttempts,
     lockSeconds,
@@ -93,4 +106,4 @@ function createRedisAuthStore(redisClient, options = {}) {
   };
 }
 
-module.exports = { createRedisAuthStore, toPositiveInteger };
+module.exports = { createRedisAuthStore, toPositiveInteger, sha256 };

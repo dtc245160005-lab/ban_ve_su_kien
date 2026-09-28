@@ -65,6 +65,8 @@ Hệ thống được tổ chức theo cấu trúc đơn giản, tập trung t�
 
 ## 6. Tóm Tắt Tiêu Chí Hoàn Thành (Definition of Done - DoD)
 
+AC của từng story/task nằm trong `docs/ac/`. Review phải đối chiếu với file này.
+
 Một task/PR chỉ được coi là hoàn thành khi đáp ứng đủ các tiêu chí:
 1. **Có review:** Được phê duyệt bởi maintainer/reviewer.
 2. **CI xanh:** GitHub Actions vượt qua tất cả các bước (`npm ci`, `npm run verify`, `npm audit`).

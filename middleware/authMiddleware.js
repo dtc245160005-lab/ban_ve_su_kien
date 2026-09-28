@@ -1,5 +1,5 @@
 const { parseCookies } = require('../lib/cookies');
-const redisClient = require('../lib/redis');
+const { redisClient } = require('../lib/redis');
 const { createRedisAuthStore } = require('../services/redisAuthStore');
 
 function createAuthMiddleware(options = {}) {
@@ -11,11 +11,6 @@ function createAuthMiddleware(options = {}) {
 
   return async function requireAuth(req, res, next) {
     try {
-      const client = options.redisClient || redisClient;
-      if (client && !client.isOpen && typeof client.connect === 'function') {
-        await client.connect();
-      }
-
       const cookies = parseCookies(req.headers.cookie);
       const token = cookies[cookieName];
 
