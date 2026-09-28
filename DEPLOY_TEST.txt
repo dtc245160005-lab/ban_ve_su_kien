@@ -1,2 +1,0 @@
-﻿Staging auto-deploy verification - 2026-09-28
-Auto deploy test after GitHub reconnect

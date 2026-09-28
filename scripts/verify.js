@@ -3,45 +3,6 @@ const { spawnSync } = require('node:child_process');
 const { Client } = require('pg');
 require('dotenv').config();
 
-function parseFailedTests(output) {
-  const lines = output.split(/\r?\n/);
-  const failed = [];
-  let current = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const tapMatch = line.match(/^\s*not ok\s+\d*\s*-?\s*(.*)$/);
-    if (tapMatch) {
-      if (current) failed.push(current);
-      current = { name: tapMatch[1].trim() || 'Unnamed test', error: '' };
-      continue;
-    }
-
-    const specMatch = line.match(/^\s*[✖✕]\s+(.*)$/);
-    if (specMatch) {
-      if (current) failed.push(current);
-      current = { name: specMatch[1].trim() || 'Unnamed test', error: '' };
-      continue;
-    }
-
-    if (current && !current.error) {
-      const errPropMatch = line.match(/^\s*error:\s*['"]?(.*?)['"]?$/);
-      if (errPropMatch && errPropMatch[1] !== 'test failed') {
-        current.error = errPropMatch[1].trim();
-      } else {
-        const errorLineMatch = line.match(/^\s*(?:[A-Z][a-zA-Z]*Error|TypeError|Error):\s*(.*)$/);
-        if (errorLineMatch) {
-          current.error = line.trim();
-        }
-      }
-    }
-  }
-
-  if (current) failed.push(current);
-  const specificTests = failed.filter((f) => !f.error.includes('subtests failed'));
-  return specificTests.length > 0 ? specificTests : failed;
-}
-
 function runCommand(command, args, env) {
   const isWindows = process.platform === 'win32';
   let resolvedCommand = command;
@@ -66,47 +27,6 @@ function runCommand(command, args, env) {
     throw result.error;
   }
   if (result.status !== 0) {
-    throw new Error(`Command failed with exit code ${result.status}`);
-  }
-}
-
-function runNpmTest(env, onFailed) {
-  const isWindows = process.platform === 'win32';
-  let resolvedCommand = 'npm';
-  let resolvedArgs = ['test'];
-
-  if (isWindows) {
-    resolvedCommand = 'cmd.exe';
-    resolvedArgs = ['/d', '/s', '/c', 'npm', 'test'];
-  }
-
-  const result = spawnSync(resolvedCommand, resolvedArgs, {
-    env: {
-      ...process.env,
-      ...env,
-    },
-    cwd: path.resolve(__dirname, '..'),
-    shell: false,
-    encoding: 'utf8',
-    maxBuffer: 10 * 1024 * 1024,
-  });
-
-  if (result.stdout) {
-    process.stdout.write(result.stdout);
-  }
-  if (result.stderr) {
-    process.stderr.write(result.stderr);
-  }
-
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    const combined = `${result.stdout || ''}\n${result.stderr || ''}`;
-    const failedTests = parseFailedTests(combined);
-    if (typeof onFailed === 'function') {
-      onFailed(failedTests);
-    }
     throw new Error(`Command failed with exit code ${result.status}`);
   }
 }
@@ -155,7 +75,6 @@ async function main() {
   let adminClient = null;
   let tempDbCreated = false;
   let failedStep = null;
-  let failedTestsList = null;
 
   try {
     // 1. Create temporary database
@@ -219,9 +138,7 @@ async function main() {
     // 7. npm test
     try {
       console.log('\n[VERIFY STEP] Running npm test');
-      runNpmTest(verifyEnv, (failed) => {
-        failedTestsList = failed;
-      });
+      runCommand('npm', ['test'], verifyEnv);
     } catch (err) {
       failedStep = 'npm test';
       throw err;
@@ -268,14 +185,6 @@ async function main() {
   }
 
   if (failedStep) {
-    if (failedStep === 'npm test' && failedTestsList && failedTestsList.length > 0) {
-      console.log('\n==============================');
-      console.log('FAILED TESTS:');
-      for (const ft of failedTestsList) {
-        console.log(`- ${ft.name}${ft.error ? ': ' + ft.error : ''}`);
-      }
-      console.log('==============================\n');
-    }
     console.log(`VERIFY: FAIL ${failedStep}`);
     process.exit(1);
   } else {

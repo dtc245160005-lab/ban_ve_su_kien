@@ -53,7 +53,6 @@ jobs:
         env:
           DB_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/postgres
           REDIS_URL: redis://localhost:6379
-          TZ: UTC
         run: npm run verify
 
       - name: Audit high severity dependencies
