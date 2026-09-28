@@ -6,6 +6,7 @@ const { start } = require('../index');
 const activationService = require('../services/activationService');
 const { redisClient, closeRedis } = require('../lib/redis');
 const logger = require('../lib/logger');
+const resendLimiter = require('../services/resendLimiter');
 
 describe('T-08 Account Activation & Resend Tests', () => {
   let server;
@@ -194,16 +195,152 @@ describe('T-08 Account Activation & Resend Tests', () => {
     assert.strictEqual(oldTokenRes.status, 409);
   });
 
-  test('7. Giới hạn gửi lại 5 lần/giờ: lần thứ 6 trả 202 nhưng không sinh token mới', async () => {
-    const email = `act_ratelimit_${Date.now()}@example.test`;
+  test('5a. Redis lỗi: truyền vào limiter một client giả, mọi lệnh đều ném lỗi. Gọi resend 6 lần: 0 token mới, 0 [DEV MAIL], cả 6 lần đều nhận 202 với body giống hệt nhau', async () => {
+    const email = `act_redis_err_${Date.now()}@example.test`;
     const { user } = await createInactiveUserWithToken(email);
 
-    // Xóa key redis cũ nếu có
+    const initialTokenCount = await db('email_activation_tokens')
+      .where({ user_id: user.id })
+      .count('id as count')
+      .first();
+
+    const fakeErrorRedis = {
+      isOpen: true,
+      multi() {
+        throw new Error('Redis failure: connection refused');
+      },
+      async incr() {
+        throw new Error('Redis failure');
+      },
+    };
+
+    resendLimiter.setRedisClient(fakeErrorRedis);
+
+    let devMailCount = 0;
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const msg = args.join(' ');
+      if (msg.includes('[DEV MAIL]')) {
+        devMailCount++;
+      }
+      originalLog(...args);
+    };
+
+    const responses = [];
+    try {
+      for (let i = 0; i < 6; i++) {
+        const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        assert.strictEqual(res.status, 202);
+        const body = await res.json();
+        responses.push(body);
+      }
+    } finally {
+      resendLimiter.resetRedisClient();
+      console.log = originalLog;
+    }
+
+    // Cả 6 lần đều nhận 202 với body giống hệt nhau
+    assert.strictEqual(responses.length, 6);
+    const expectedBody = {
+      success: true,
+      message: 'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.',
+    };
+    for (const body of responses) {
+      assert.deepStrictEqual(body, expectedBody);
+    }
+
+    // 0 [DEV MAIL]
+    assert.strictEqual(devMailCount, 0, 'Không được gửi bất kỳ email nào khi Redis lỗi');
+
+    // 0 token mới
+    const finalTokenCount = await db('email_activation_tokens')
+      .where({ user_id: user.id })
+      .count('id as count')
+      .first();
+    assert.strictEqual(
+      Number(finalTokenCount.count),
+      Number(initialTokenCount.count),
+      'Không được sinh thêm token mới trong DB khi Redis lỗi'
+    );
+  });
+
+  test('5b. Redis bình thường: lần 1 đến 5 tạo token và gửi mail; lần 6 thì không', async () => {
+    const email = `act_redis_normal_${Date.now()}@example.test`;
+    const { user } = await createInactiveUserWithToken(email);
+
+    // Bắt đầu với 0 token để đếm chuẩn
+    await db('email_activation_tokens').where({ user_id: user.id }).del();
+
     const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
     const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
     await redisClient.del(`${prefix}resend:${emailHash}`);
 
-    // Gửi 5 lần
+    let devMailCount = 0;
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const msg = args.join(' ');
+      if (msg.includes('[DEV MAIL]')) {
+        devMailCount++;
+      }
+      originalLog(...args);
+    };
+
+    try {
+      // Lần 1 đến 5: tạo token và gửi mail
+      for (let i = 1; i <= 5; i++) {
+        const mailBefore = devMailCount;
+        const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        assert.strictEqual(res.status, 202);
+        assert.strictEqual(devMailCount, mailBefore + 1, `Lần ${i} phải gửi email`);
+      }
+
+      const countAfter5 = await db('email_activation_tokens')
+        .where({ user_id: user.id })
+        .count('id as count')
+        .first();
+      assert.strictEqual(Number(countAfter5.count), 5, 'Sau 5 lần phải tạo đúng 5 token');
+
+      // Lần 6: KHÔNG tạo token và KHÔNG gửi mail
+      const mailBefore6 = devMailCount;
+      const res6 = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.strictEqual(res6.status, 202);
+      assert.strictEqual(devMailCount, mailBefore6, 'Lần 6 không được gửi email');
+
+      const countAfter6 = await db('email_activation_tokens')
+        .where({ user_id: user.id })
+        .count('id as count')
+        .first();
+      assert.strictEqual(Number(countAfter6.count), 5, 'Lần 6 không được tạo thêm token');
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  test('5c. Redis bị xoá key giữa chừng (mô phỏng Redis khởi động lại mất dữ liệu): sau 5 lần, xoá key bộ đếm, gọi lần 6 thì chốt chặn DB vẫn chặn', async () => {
+    const email = `act_redis_reset_${Date.now()}@example.test`;
+    const { user } = await createInactiveUserWithToken(email);
+
+    // Bắt đầu với 0 token
+    await db('email_activation_tokens').where({ user_id: user.id }).del();
+
+    const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
+    const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
+    const rateLimitKey = `${prefix}resend:${emailHash}`;
+    await redisClient.del(rateLimitKey);
+
+    // Gửi 5 lần bình thường
     for (let i = 1; i <= 5; i++) {
       const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
         method: 'POST',
@@ -213,31 +350,147 @@ describe('T-08 Account Activation & Resend Tests', () => {
       assert.strictEqual(res.status, 202);
     }
 
-    const tokensCountAfter5 = await db('email_activation_tokens')
+    const countAfter5 = await db('email_activation_tokens')
       .where({ user_id: user.id })
       .count('id as count')
       .first();
+    assert.strictEqual(Number(countAfter5.count), 5);
 
-    // Lần thứ 6
-    const res6 = await fetch(`${baseUrl}/api/auth/resend-activation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    assert.strictEqual(res6.status, 202);
-    const body6 = await res6.json();
-    assert.strictEqual(body6.success, true);
+    // Mô phỏng Redis khởi động lại mất dữ liệu: xoá key bộ đếm
+    await redisClient.del(rateLimitKey);
+    const keyExists = await redisClient.exists(rateLimitKey);
+    assert.strictEqual(keyExists, 0, 'Key Redis đã bị xoá hoàn toàn');
 
-    const tokensCountAfter6 = await db('email_activation_tokens')
-      .where({ user_id: user.id })
-      .count('id as count')
-      .first();
+    let devMailCount = 0;
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const msg = args.join(' ');
+      if (msg.includes('[DEV MAIL]')) {
+        devMailCount++;
+      }
+      originalLog(...args);
+    };
 
-    assert.strictEqual(
-      Number(tokensCountAfter5.count),
-      Number(tokensCountAfter6.count),
-      'Lần thứ 6 không được sinh thêm token mới do đã vượt quá rate limit'
+    try {
+      // Gọi lần 6: Redis cho qua (bộ đếm = 1) nhưng chốt chặn DB (nguồn sự thật) phải chặn!
+      const res6 = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.strictEqual(res6.status, 202);
+      assert.strictEqual(devMailCount, 0, 'Chốt chặn DB chặn nên không được gửi email');
+
+      const countAfter6 = await db('email_activation_tokens')
+        .where({ user_id: user.id })
+        .count('id as count')
+        .first();
+      assert.strictEqual(
+        Number(countAfter6.count),
+        5,
+        'Chốt chặn DB chặn nên không được sinh thêm token mới'
+      );
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  test('5d. 10 request resend song song cho cùng một email: tổng số token tạo ra trong giờ không vượt quá 5', async () => {
+    const email = `act_parallel_${Date.now()}@example.test`;
+    const { user } = await createInactiveUserWithToken(email);
+
+    // Bắt đầu với 0 token
+    await db('email_activation_tokens').where({ user_id: user.id }).del();
+
+    const prefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
+    const emailHash = require('crypto').createHash('sha256').update(email).digest('hex');
+    await redisClient.del(`${prefix}resend:${emailHash}`);
+
+    // Bắn 10 request resend song song
+    const reqs = Array.from({ length: 10 }, () =>
+      fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
     );
+
+    const responses = await Promise.all(reqs);
+    for (const res of responses) {
+      assert.strictEqual(res.status, 202);
+      const body = await res.json();
+      assert.strictEqual(body.success, true);
+    }
+
+    // Đếm số token tạo ra trong giờ
+    const countResult = await db('email_activation_tokens')
+      .where({ user_id: user.id })
+      .whereRaw("created_at > (now() - interval '1 hour')")
+      .count('* as count')
+      .first();
+
+    const totalCreated = Number(countResult.count);
+    assert.ok(
+      totalCreated <= 5,
+      `Tổng số token tạo ra trong giờ phải <= 5, thực tế là ${totalCreated}`
+    );
+  });
+
+  test('5e. Output log của ca (a) không chứa email', async () => {
+    const email = `act_secret_log_${Date.now()}@example.test`;
+    await createInactiveUserWithToken(email);
+
+    const fakeErrorRedis = {
+      isOpen: true,
+      multi() {
+        throw new Error('Redis connection down');
+      },
+      async incr() {
+        throw new Error('Redis connection down');
+      },
+    };
+
+    resendLimiter.setRedisClient(fakeErrorRedis);
+
+    const capturedLogs = [];
+    const originalSink = logger.sink;
+    logger.sink = (line) => {
+      capturedLogs.push(line);
+    };
+
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/resend-activation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      assert.strictEqual(res.status, 202);
+    } finally {
+      resendLimiter.resetRedisClient();
+      logger.sink = originalSink;
+    }
+
+    assert.ok(capturedLogs.length > 0, 'Phải có log được ghi nhận');
+    const combinedLog = capturedLogs.join('\n');
+    assert.strictEqual(
+      combinedLog.includes(email),
+      false,
+      'Log khi Redis lỗi tuyệt đối không được chứa email người dùng'
+    );
+
+    // Đảm bảo có log sự kiện resend_blocked với reason limiter_unavailable
+    const blockedEntry = capturedLogs
+      .map((l) => {
+        try {
+          return JSON.parse(l);
+        } catch {
+          return {};
+        }
+      })
+      .find((entry) => entry.event === 'resend_blocked');
+
+    assert.ok(blockedEntry, 'Phải ghi logEvent resend_blocked');
+    assert.strictEqual(blockedEntry.reason, 'limiter_unavailable');
   });
 
   test('8. Đăng nhập tài khoản chưa kích hoạt: mật khẩu đúng trả 403 và không tăng đếm thất bại; mật khẩu sai trả 401 và tăng đếm thất bại', async () => {

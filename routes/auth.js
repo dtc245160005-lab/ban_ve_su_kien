@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const express = require('express');
 const argon2 = require('argon2');
 const { redisClient } = require('../lib/redis');
@@ -8,6 +7,7 @@ const { createRedisAuthStore } = require('../services/redisAuthStore');
 const { createAuthService } = require('../services/authService');
 const defaultActivationService = require('../services/activationService');
 const defaultEmailService = require('../services/emailService');
+const defaultResendLimiter = require('../services/resendLimiter');
 const { validateRegisterForm } = require('../public/registerForm');
 const { secure } = require('../middleware/routeRegistry');
 const { logEvent } = require('../lib/logger');
@@ -57,6 +57,12 @@ function createAuthRouter(customDependencies = {}) {
   const emailService =
     customDependencies.emailService ||
     defaultEmailService;
+
+  const resendLimiter =
+    customDependencies.resendLimiter ||
+    (customDependencies.redisClient && customDependencies.redisClient !== redisClient
+      ? defaultResendLimiter.createResendLimiter({ redisClient: customDependencies.redisClient })
+      : defaultResendLimiter);
 
   const authenticateMiddleware =
     customDependencies.authenticateMiddleware ||
@@ -252,53 +258,40 @@ function createAuthRouter(customDependencies = {}) {
     try {
       const email = String(req.body?.email || '').trim().toLowerCase();
 
-      // Giới hạn 5 lần / giờ cho mỗi email bằng Redis
-      const emailHash = crypto.createHash('sha256').update(email).digest('hex');
-      const keyPrefix = process.env.REDIS_KEY_PREFIX || 'bvsk:';
-      const rateLimitKey = `${keyPrefix}resend:${emailHash}`;
-
-      let attemptsCount = 1;
-      if (redis && redis.isOpen) {
-        const multi = redis.multi();
-        multi.incr(rateLimitKey);
-        multi.expire(rateLimitKey, 3600, 'NX');
-        const execResult = await multi.exec();
-        attemptsCount = Number(execResult[0]);
+      if (!email) {
+        logEvent('resend_requested', { req, status: 202 });
+        return res.status(202).json({
+          success: true,
+          message: GENERIC_RESEND_MESSAGE,
+        });
       }
 
-      if (attemptsCount <= 5 && email) {
-        const user = await db('users')
-          .where({ email })
-          .first('id', 'email', 'full_name', 'is_active');
+      // 1. Kiểm tra rate limit bằng Redis qua resendLimiter (fail-closed nếu Redis lỗi)
+      const limitResult = await resendLimiter.checkAndIncrement(email);
 
-        if (user && !user.is_active) {
-          const tokenObj = activationService.createActivationToken();
+      // Nếu không được phép (Redis lỗi/đóng hoặc vượt quá 5 lần/giờ):
+      // Không tạo token, không gửi mail, trả 202 generic message
+      if (!limitResult.allowed) {
+        logEvent('resend_requested', { req, status: 202 });
+        return res.status(202).json({
+          success: true,
+          message: GENERIC_RESEND_MESSAGE,
+        });
+      }
 
-          await db.transaction(async (trx) => {
-            // Đánh dấu mọi token cũ còn hạn là đã sử dụng
-            await trx('email_activation_tokens')
-              .where({ user_id: user.id })
-              .whereNull('used_at')
-              .update({ used_at: trx.fn.now() });
+      // 2. Chốt chặn thứ hai bằng DB (nguồn sự thật): khoá user FOR UPDATE, đếm token trong 1 giờ
+      const resendData = await activationService.generateResendToken(email);
 
-            // Chèn token mới
-            await trx('email_activation_tokens').insert({
-              user_id: user.id,
-              token_hash: tokenObj.tokenHash,
-              expires_at: tokenObj.expiresAt,
-            });
+      if (resendData && resendData.user && resendData.tokenObj) {
+        try {
+          const activationUrl = activationService.buildActivationUrl(resendData.tokenObj.rawToken);
+          await emailService.sendActivationEmail({
+            to: resendData.user.email,
+            fullName: resendData.user.full_name,
+            activationUrl,
           });
-
-          try {
-            const activationUrl = activationService.buildActivationUrl(tokenObj.rawToken);
-            await emailService.sendActivationEmail({
-              to: user.email,
-              fullName: user.full_name,
-              activationUrl,
-            });
-          } catch {
-            logEvent('mail_failed', { userId: user.id, status: 500 });
-          }
+        } catch {
+          logEvent('mail_failed', { userId: resendData.user.id, status: 500 });
         }
       }
 

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const defaultDb = require('../db');
+const { logEvent } = require('../lib/logger');
 
 const ACTIVATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ
 
@@ -99,11 +100,64 @@ function createActivationService({ db = defaultDb } = {}) {
     });
   }
 
+  async function generateResendToken(email, now = new Date()) {
+    if (!email || typeof email !== 'string') {
+      return null;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    return await db.transaction(async (trx) => {
+      // Khoá dòng users của user đó bằng SELECT ... FOR UPDATE để serialize các request song song
+      const user = await trx('users')
+        .where({ email: normalizedEmail })
+        .forUpdate()
+        .first('id', 'email', 'full_name', 'is_active');
+
+      if (!user || user.is_active) {
+        return null;
+      }
+
+      // Chốt chặn DB: đếm số token của user đó có created_at > now() - interval '1 hour'
+      const countResult = await trx('email_activation_tokens')
+        .where({ user_id: user.id })
+        .whereRaw("created_at > (now() - interval '1 hour')")
+        .count('* as count')
+        .first();
+
+      const count = Number(countResult?.count || 0);
+      if (count >= 5) {
+        logEvent('resend_blocked', { userId: user.id, reason: 'db_rate_limited' });
+        return null;
+      }
+
+      // Đánh dấu các token cũ còn hạn/chưa sử dụng là đã dùng
+      await trx('email_activation_tokens')
+        .where({ user_id: user.id })
+        .whereNull('used_at')
+        .update({ used_at: trx.fn.now() });
+
+      // Tạo token mới
+      const tokenObj = createActivationToken(now);
+      await trx('email_activation_tokens').insert({
+        user_id: user.id,
+        token_hash: tokenObj.tokenHash,
+        expires_at: tokenObj.expiresAt,
+      });
+
+      return {
+        user,
+        tokenObj,
+      };
+    });
+  }
+
   return {
     createActivationToken,
     hashToken,
     buildActivationUrl,
     activate,
+    generateResendToken,
   };
 }
 
