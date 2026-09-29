@@ -277,4 +277,24 @@ npm run backup
   - Chống bấm gửi trùng lặp (vô hiệu hoá nút submit trong lúc đang gửi yêu cầu).
   - Hiển thị lỗi kiểm tra dữ liệu trực tiếp dưới từng ô nhập liệu.
 
+---
+
+## 10. Sơ đồ ghế (T-11, T-12 / S-05)
+
+- Migration tạo `seat_categories` và `seats` theo từng suất diễn. Một suất diễn không thể có hai ghế cùng hàng và số; hạng ghế phải thuộc chính suất diễn đó. Có index theo `showtime_id`, kiểm tra số ghế dương và migration rollback theo thứ tự bảng con trước.
+- `POST /api/organizer/showtimes/:id/seats/import` dành cho admin hoặc chủ sự kiện có vai trò organizer. Gửi `multipart/form-data` với đúng một tệp JSON ở trường `file` (tối đa 5 MB). Phản hồi thành công: `200` và `{ "success": true, "data": { "showtime_id": 1, "seats_count": 2000, "categories_count": 2 } }`.
+- Định dạng JSON hiện tại (chưa có giao diện tải lên T-14):
+
+  ```json
+  {
+    "seats": [
+      { "row": "A", "number": 1, "category": "VIP" },
+      { "row": "A", "number": 2, "category": "Thường" }
+    ]
+  }
+  ```
+
+- Tên hạng ghế được tạo tự động theo suất diễn. Nạp lại sẽ thay toàn bộ ghế và hạng cũ trong **một giao dịch**; nếu bất kỳ ghế nào lỗi, trạng thái trước đó giữ nguyên (lần nạp đầu sẽ còn 0 ghế). Yêu cầu bị từ chối `409` nếu có vé hoặc giữ chỗ còn hiệu lực. Khi các bảng nghiệp vụ vé/giữ chỗ được tích hợp ở sprint sau, chúng phải có `showtime_id` hoặc FK `seat_id → seats.id` để bộ chặn xác định đúng suất diễn. Nếu bảng cũ chỉ có mã ghế dạng chuỗi không có FK, hệ thống chặn nạp lại khi có bất kỳ giữ chỗ còn hiệu lực để tránh mất dữ liệu; các thao tác đặt chỗ cũng cần đồng bộ trên hàng `showtimes` để tránh race với nạp lại.
+- Trên Render dùng Docker, container chạy `npm run migrate:latest` trước `npm start`; không seed hay rollback dữ liệu staging. Hãy kiểm tra backup và CI trước khi merge migration. `npm run verify` vẫn chỉ dùng database tạm và rollback database tạm.
+
 
