@@ -2,15 +2,46 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop-v2, develop ]
   pull_request:
-    branches: [ main, develop-v2, develop ]
+    branches: [develop-v2]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
-    name: ci
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Build deployable Docker image
+        run: docker build --build-arg APP_REVISION=${{ github.sha }} -t ban-ve-ci:${{ github.sha }} .
 
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     services:
       postgres:
         image: postgres:15-alpine
@@ -18,43 +49,62 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
+        ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DB_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/postgres
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+      MAIL_TRANSPORT: dev
+      TZ: UTC
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run verification
-        env:
-          DB_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/postgres
-          REDIS_URL: redis://localhost:6379
-          TZ: UTC
+          cache: npm
+      - run: npm ci
+      - name: Migration rollback, seed, lint and tests
         run: npm run verify
+      - name: K-01 concurrency experiment against real PostgreSQL and Redis
+        run: |
+          mkdir -p .artifacts
+          npm run --silent spike:holds > .artifacts/k01-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k01-results
+          path: .artifacts/k01-results.json
 
-      - name: Audit high severity dependencies
-        run: npm audit --audit-level=high
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  ci:
+    name: ci
+    if: always()
+    needs: [build, lint, verify, audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require all checks to pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          test "$RESULTS" = "success,success,success,success"
+          echo 'CI: PASS'

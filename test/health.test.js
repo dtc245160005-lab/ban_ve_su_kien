@@ -12,7 +12,7 @@ describe('Health Check API (/health)', () => {
   before(async () => {
     await db.raw('SELECT 1');
     await getRedis();
-    healthyApp = createApp();
+    healthyApp = createApp({ revision: 'a'.repeat(40) });
     healthyServer = healthyApp.listen(0);
     const port = healthyServer.address().port;
     baseUrl = `http://127.0.0.1:${port}`;
@@ -32,6 +32,7 @@ describe('Health Check API (/health)', () => {
     const body = await res.json();
     assert.strictEqual(body.status, 'ok');
     assert.ok(body.timestamp);
+    assert.equal(body.revision, 'a'.repeat(40));
   });
 
   test('Redis chết: trả về 503, body không chứa thông báo lỗi kỹ thuật', async () => {
@@ -55,6 +56,27 @@ describe('Health Check API (/health)', () => {
       assert.strictEqual(JSON.stringify(body).includes('Connection refused'), false);
     } finally {
       await new Promise((r) => s.close(r));
+    }
+  });
+
+  test('Health revision ưu tiên Render, bỏ qua unknown và hỗ trợ SHA của Docker', async () => {
+    const saved = { APP_REVISION: process.env.APP_REVISION, RENDER_GIT_COMMIT: process.env.RENDER_GIT_COMMIT };
+    const s = createApp().listen(0);
+    const url = `http://127.0.0.1:${s.address().port}/health`;
+    try {
+      process.env.APP_REVISION = 'unknown';
+      process.env.RENDER_GIT_COMMIT = 'b'.repeat(40);
+      assert.equal((await (await fetch(url)).json()).revision, 'b'.repeat(40));
+      delete process.env.RENDER_GIT_COMMIT;
+      assert.equal((await (await fetch(url)).json()).revision, null);
+      process.env.APP_REVISION = 'c'.repeat(40);
+      assert.equal((await (await fetch(url)).json()).revision, 'c'.repeat(40));
+    } finally {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      await new Promise((resolve) => s.close(resolve));
     }
   });
 

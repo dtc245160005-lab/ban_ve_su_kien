@@ -5,6 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "build": "node scripts/build.js",
+    "setup": "node scripts/setup.js",
+    "doctor": "node scripts/doctor.js",
+    "spike:holds": "node scripts/spike-seat-holds.js",
+    "staging:check": "node scripts/check-staging.js",
     "test": "node --test",
     "lint": "eslint .",
     "verify": "node scripts/verify.js",
@@ -14,6 +19,7 @@
     "backup": "node scripts/backup.js"
   },
   "keywords": [],
+  "engines": { "node": "^20.19.0 || ^22.13.0 || >=24" },
   "author": "",
   "license": "ISC",
   "type": "commonjs",
