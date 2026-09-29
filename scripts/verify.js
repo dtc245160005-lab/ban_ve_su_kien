@@ -144,6 +144,8 @@ async function main() {
     ...process.env,
     DB_CONNECTION_STRING: tempDbConnectionString,
     REDIS_KEY_PREFIX: `bvsk-verify:${timestamp}:`,
+    NODE_ENV: 'test',
+    MAIL_TRANSPORT: 'dev',
     DEMO_ADMIN_EMAIL: process.env.DEMO_ADMIN_EMAIL || 'admin@example.com',
     DEMO_ADMIN_PASSWORD: process.env.DEMO_ADMIN_PASSWORD || 'DemoAdmin@123456',
     DEMO_ORGANIZER_EMAIL: process.env.DEMO_ORGANIZER_EMAIL || 'organizer@example.com',

@@ -53,6 +53,24 @@ describe('Client-Side API & Security Helpers (public/api.js)', () => {
       );
     });
 
+    test('hai phản hồi 401 liên tiếp không lồng /login.html vào tham số next', () => {
+      let currentUrl = new URL('https://example.test/organizer-events.html');
+      const mockLocation = {
+        get pathname() { return currentUrl.pathname; },
+        get search() { return currentUrl.search; },
+        get href() { return currentUrl.href; },
+        set href(value) { currentUrl = new URL(value, currentUrl); },
+      };
+      const res = { status: 401 };
+
+      handleResponse(res, mockLocation);
+      const firstRedirect = mockLocation.href;
+      handleResponse(res, mockLocation);
+
+      assert.strictEqual(mockLocation.href, firstRedirect);
+      assert.strictEqual(mockLocation.search, '?next=%2Forganizer-events.html');
+    });
+
     test('khi nhận HTTP 200 thì KHÔNG chuyển hướng (location.href không đổi)', () => {
       const mockLocation = {
         pathname: '/events',

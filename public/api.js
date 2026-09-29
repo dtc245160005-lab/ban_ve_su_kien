@@ -20,6 +20,10 @@
 
   function handleResponse(res, location) {
     if (res && res.status === 401 && location) {
+      // Multiple requests can return 401 while the first redirect is in progress.
+      if (location.pathname === '/login.html') {
+        return res;
+      }
       let currentPath = '/app.html';
       if (location.pathname) {
         currentPath = location.pathname + (location.search || '');

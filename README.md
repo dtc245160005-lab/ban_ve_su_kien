@@ -41,6 +41,8 @@ trước khi mở server. Đây là cấu hình development; email dùng chế �
 
 `verify` không khởi tạo database ứng dụng: nó tạo database tạm, migrate/rollback,
 seed, lint/test rồi dọn database tạm. Không dùng `verify` thay cho `setup`.
+Trong database tạm, `verify` luôn dùng `NODE_ENV=test` và `MAIL_TRANSPORT=dev`,
+không gửi email qua SMTP thật dù `.env` của máy đang cấu hình SMTP.
 `doctor` báo migration thuộc nhánh khác thì dùng database mới hoặc đối chiếu
 đúng nhánh. Không xóa volume/database đang có dữ liệu để xử lý lỗi này.
 Redis cũ (ví dụ bản Windows 5.x) không hỗ trợ `EXPIRE NX` mà đăng nhập/gửi lại
