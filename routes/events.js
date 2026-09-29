@@ -1,7 +1,30 @@
 const express = require('express');
+const multer = require('multer');
 const defaultEventService = require('../services/eventService');
+const { createSeatMapService } = require('../services/seatMapService');
 const { secure } = require('../middleware/routeRegistry');
 const { logEvent } = require('../lib/logger');
+
+const receiveSeatMap = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+}).single('file');
+
+function receiveSeatMapFile(req, res, next) {
+  if (!req.is('multipart/form-data')) {
+    return res.status(415).json({ success: false, message: 'Cần gửi tệp JSON dạng multipart/form-data.' });
+  }
+  return receiveSeatMap(req, res, (error) => {
+    if (error) {
+      const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ success: false, message: 'Tệp tải lên không hợp lệ hoặc vượt quá 5 MB.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Thiếu tệp JSON ở trường file.' });
+    }
+    return next();
+  });
+}
 
 function createPublicEventsRouter(options = {}) {
   const router = express.Router();
@@ -24,6 +47,7 @@ function createOrganizerEventsRouter(options = {}) {
   const router = express.Router();
   const eventService = options.eventService || defaultEventService.createEventService(options.db);
   const allowedRoles = { roles: ['organizer', 'admin'] };
+  const seatMapService = options.seatMapService || createSeatMapService(options.db);
 
   // 1. GET /api/organizer/events
   secure(router, 'get', '/events', allowedRoles, async (req, res) => {
@@ -176,6 +200,21 @@ function createOrganizerEventsRouter(options = {}) {
         return res.status(err.status).json({ success: false, message: err.message, errors: err.errors });
       }
       console.error('Error deleting showtime:', err.message);
+      return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
+    }
+  });
+
+  // T-12: replace the entire seat map atomically; file field is named `file`.
+  secure(router, 'post', '/showtimes/:id/seats/import', allowedRoles, receiveSeatMapFile, async (req, res) => {
+    try {
+      const result = await seatMapService.importSeatMap(Number(req.params.id), req.file.buffer, req.user);
+      logEvent('seat_map_imported', { userId: req.user?.id, showtimeId: result.showtime_id });
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ success: false, message: error.message });
+      }
+      console.error('Error importing seat map:', error.code || 'unexpected error');
       return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
     }
   });

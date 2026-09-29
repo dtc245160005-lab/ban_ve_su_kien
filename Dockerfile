@@ -26,4 +26,4 @@ ENV APP_REVISION=$APP_REVISION
 
 EXPOSE 8090
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npm run migrate:latest && npm start"]
