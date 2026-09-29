@@ -1,0 +1,95 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const dotenv = require('dotenv');
+const { Client } = require('pg');
+const { createClient } = require('redis');
+
+function validateEnvironment(env, nodeVersion = process.versions.node) {
+  const errors = [];
+  const [major, minor] = nodeVersion.split('.').map(Number);
+  if (!(major >= 24 || (major === 22 && minor >= 13) || (major === 20 && minor >= 19))) {
+    errors.push('Yêu cầu Node.js 20.19+, 22.13+ hoặc >=24 (phù hợp ESLint).');
+  }
+  for (const key of ['DB_CONNECTION_STRING', 'DEMO_ADMIN_EMAIL', 'DEMO_ADMIN_PASSWORD',
+    'DEMO_ORGANIZER_EMAIL', 'DEMO_ORGANIZER_PASSWORD']) {
+    if (!env[key]?.trim()) errors.push(`Thiếu biến ${key}.`);
+  }
+  for (const [key, protocols] of [['DB_CONNECTION_STRING', ['postgres:', 'postgresql:']],
+    ['REDIS_URL', ['redis:', 'rediss:']]]) {
+    if (!env[key]) continue;
+    try {
+      if (!protocols.includes(new URL(env[key]).protocol)) errors.push(`Sai giao thức ${key}.`);
+    } catch { errors.push(`Sai định dạng ${key}.`); }
+  }
+  const mailTransport = env.MAIL_TRANSPORT || 'dev';
+  if (!['dev', 'smtp'].includes(mailTransport)) errors.push('MAIL_TRANSPORT phải là dev hoặc smtp.');
+  if (mailTransport === 'smtp') {
+    for (const key of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM']) {
+      if (!env[key]?.trim()) errors.push(`Thiếu biến ${key}.`);
+    }
+  } else if (!['development', 'test', undefined, ''].includes(env.NODE_ENV)) {
+    errors.push('Staging/production yêu cầu MAIL_TRANSPORT=smtp.');
+  }
+  return errors;
+}
+
+function compareMigrations(recorded, available) {
+  return {
+    orphaned: recorded.filter((name) => !available.includes(name)),
+    pending: available.filter((name) => !recorded.includes(name)),
+  };
+}
+
+async function inspectEnvironment({ env = process.env, root = path.resolve(__dirname, '..'),
+  requireConfiguredDatabase = false } = {}) {
+  const errors = validateEnvironment(env);
+  if (errors.length) return { errors, pending: [] };
+  const pg = new Client({ connectionString: env.DB_CONNECTION_STRING, connectionTimeoutMillis: 5000 });
+  const redis = createClient({ url: env.REDIS_URL || 'redis://localhost:6379',
+    socket: { connectTimeout: 5000, reconnectStrategy: false } });
+  redis.on('error', () => {});
+  let pending = [];
+  try {
+    await pg.connect();
+    await pg.query('SELECT 1');
+    const version = (await pg.query('SHOW server_version_num')).rows[0].server_version_num;
+    if (Number(version) < 150000) errors.push('Yêu cầu PostgreSQL >= 15.');
+    const exists = await pg.query("SELECT to_regclass('public.knex_migrations') AS name");
+    const recorded = exists.rows[0].name
+      ? (await pg.query('SELECT name FROM knex_migrations')).rows.map((row) => row.name) : [];
+    const available = fs.readdirSync(path.join(root, 'migrations')).filter((file) => file.endsWith('.js'));
+    const state = compareMigrations(recorded, available);
+    pending = state.pending;
+    if (state.orphaned.length) {
+      errors.push(`Database có migration từ nhánh khác: ${state.orphaned.join(', ')}. Dùng database mới hoặc đối chiếu nhánh; không tự xóa dữ liệu.`);
+    }
+    if (requireConfiguredDatabase && pending.length) errors.push('Database chưa migrate đầy đủ.');
+  } catch (error) {
+    const hint = { ECONNREFUSED: 'Kiểm tra host/port và dịch vụ DB.',
+      '28P01': 'Kiểm tra thông tin đăng nhập trong DB_CONNECTION_STRING.',
+      '3D000': 'Database chưa tồn tại; tạo database trước khi setup.' }[error.code];
+    errors.push(`Không kết nối/kiểm tra được PostgreSQL. ${hint || 'Kiểm tra DB_CONNECTION_STRING và dịch vụ DB.'}`);
+  }
+  finally { await pg.end().catch(() => {}); }
+  try {
+    await redis.connect();
+    if (await redis.ping() !== 'PONG') errors.push('Redis không trả PONG.');
+    const version = (await redis.info('server')).match(/redis_version:([^\r\n]+)/)?.[1];
+    if (!version || Number(version.split('.')[0]) < 7) {
+      errors.push('Yêu cầu Redis >= 7: đăng nhập/gửi lại email dùng EXPIRE NX.');
+    }
+  } catch { errors.push('Không kết nối được Redis. Kiểm tra REDIS_URL và dịch vụ Redis.'); }
+  finally { if (redis.isOpen) await redis.disconnect(); }
+  return { errors, pending };
+}
+
+async function main() {
+  dotenv.config({ quiet: true });
+  const result = await inspectEnvironment();
+  for (const error of result.errors) console.error(`[LỖI] ${error}`);
+  if (result.pending.length) console.log(`[INFO] ${result.pending.length} migration chờ chạy; dùng npm run setup.`);
+  console.log(result.errors.length ? 'DOCTOR: FAIL' : 'DOCTOR: PASS');
+  process.exitCode = result.errors.length ? 1 : 0;
+}
+if (require.main === module) main().catch(() => { console.error('DOCTOR: FAIL'); process.exitCode = 1; });
+module.exports = { validateEnvironment, compareMigrations, inspectEnvironment };

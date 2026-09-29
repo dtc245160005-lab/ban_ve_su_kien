@@ -2,9 +2,14 @@ services:
   # Dịch vụ ứng dụng Node.js
   api:
     build: .
+    env_file: .env
+    command: ["sh", "-c", "npm run setup && npm start"]
     ports:
       - "${PORT:-8090}:8090"
     environment:
+      - NODE_ENV=development
+      - MAIL_TRANSPORT=dev
+      - DOCKER_CONTAINER=true
       - DB_CONNECTION_STRING=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ban_ve_su_kien}
       - REDIS_URL=redis://redis:6379
       - PORT=8090

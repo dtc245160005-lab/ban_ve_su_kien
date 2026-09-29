@@ -54,7 +54,12 @@ function createApp(options = {}) {
       if (pong !== 'PONG') {
         throw new Error('Redis ping not PONG');
       }
-      return res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+      return res.status(200).json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        revision: options.revision || process.env.RENDER_GIT_COMMIT ||
+          (process.env.APP_REVISION !== 'unknown' ? process.env.APP_REVISION : null) || null,
+      });
     } catch {
       // Không để lộ chi tiết lỗi kỹ thuật
       return res.status(503).json({ status: 'error', message: 'Dịch vụ tạm thời không khả dụng' });

@@ -6,21 +6,65 @@ Dự án backend bán vé sự kiện xây dựng trên Node.js, Express, Knex, 
 
 ## Chạy dự án
 
-Thực hiện lần lượt các lệnh sau để khởi động và kiểm tra hệ thống:
+Yêu cầu Node.js 20.19+ (hoặc 22.13+/24+), PostgreSQL 15+ và Redis 7+. Tạo `.env` từ `.env.example`
+và điền cấu hình trước khi chạy. Với Docker Desktop đang chạy:
 
 ```bash
-# 1. Khởi động các dịch vụ PostgreSQL và Redis
+# 1. Tạo cấu hình (PowerShell: Copy-Item .env.example .env)
+cp .env.example .env
+
+# 2. Khởi động PostgreSQL và Redis
 docker compose up -d db redis
 
-# 2. Cài đặt các gói phụ thuộc theo package-lock.json
+# 3. Cài dependency
 npm ci
 
-# 3. Chạy kiểm tra tự động toàn diện (tạo DB tạm, migrate, rollback, seed, lint, test, dọn dẹp DB)
+# 4. Kiểm tra cấu hình/kết nối, rồi migrate và seed database ứng dụng
+npm run doctor
+npm run setup
+
+# 5. Kiểm tra toàn diện trên database TẠM RIÊNG
+npm run build
 npm run verify
 
-# 4. Khởi động ứng dụng
+# 6. Khởi động ứng dụng
 npm start
 ```
+
+Nếu PostgreSQL/Redis đã được cài trực tiếp và đang chạy, bỏ qua bước Docker,
+đặt `DB_CONNECTION_STRING` và `REDIS_URL` theo các dịch vụ đó. Database ứng dụng
+phải được tạo trước; `setup` không tạo hay xóa database.
+
+Chạy toàn bộ stack bằng Docker: tạo `.env`, cấu hình cổng không trùng với dịch vụ
+đang chạy rồi dùng `docker compose up --build`. Container API tự chạy `setup`
+trước khi mở server. Đây là cấu hình development; email dùng chế độ dev.
+
+`verify` không khởi tạo database ứng dụng: nó tạo database tạm, migrate/rollback,
+seed, lint/test rồi dọn database tạm. Không dùng `verify` thay cho `setup`.
+`doctor` báo migration thuộc nhánh khác thì dùng database mới hoặc đối chiếu
+đúng nhánh. Không xóa volume/database đang có dữ liệu để xử lý lỗi này.
+Redis cũ (ví dụ bản Windows 5.x) không hỗ trợ `EXPIRE NX` mà đăng nhập/gửi lại
+email đang dùng. `doctor` kiểm tra phiên bản trước khi setup. Nếu cổng 5432/6379
+đã có dịch vụ, đổi `POSTGRES_PORT`/`REDIS_PORT` và cập nhật URL tương ứng trong
+`.env`; không dừng/xóa dịch vụ hoặc dữ liệu khác để giải phóng cổng.
+
+## Kiểm tra CI và nghiệm thu tuần 1
+
+CI chạy build (syntax và Docker image), lint, verify và audit ở các job độc lập;
+lint và test có thể chạy song song. Check tổng `ci` chỉ đạt khi cả bốn job đạt.
+PR nhắm vào `develop-v2`. Maintainer cần bật branch protection/ruleset: yêu cầu
+check `ci` thành công và ít nhất một review phê duyệt, không cho tự merge khi CI đỏ.
+Giới hạn năm phút của từng job không thay cho số đo thời gian cả pipeline.
+
+`npm run spike:holds` chạy spike K-01 với PostgreSQL/Redis localhost: mỗi phương án
+nhận 200 yêu cầu vào cùng một ghế, năm lần; thất bại nếu có hơn một người thắng.
+Script chỉ dùng database tạm và key Redis mang prefix riêng, không phải API giữ
+ghế sản phẩm. Kết quả và quyết định nằm trong `docs/decisions/`.
+
+Nghiệm thu Render dùng `npm run staging:check`, với `STAGING_URL` và
+`STAGING_EXPECTED_REVISION` (SHA 40 ký tự). `/health` kiểm tra DB, Redis và trả
+revision từ `RENDER_GIT_COMMIT` hoặc `APP_REVISION`. Xem quy trình, giới hạn và
+các bằng chứng còn cần trong `docs/verification/sprint-1.md`.
 
 ---
 

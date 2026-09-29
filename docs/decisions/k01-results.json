@@ -1,0 +1,114 @@
+{
+  "measuredAt": "2026-09-29T09:50:46.347Z",
+  "environment": {
+    "platform": "win32 10.0.26200",
+    "node": "v24.21.0",
+    "postgres": "15.19",
+    "redis": "7.4.11",
+    "postgresPoolSize": 20,
+    "requestsPerTrial": 200,
+    "seatsPerTrial": 1,
+    "leaseMs": 600000
+  },
+  "redis": [
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 4.729,
+      "p50Ms": 3.28,
+      "p95Ms": 3.933
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 3.109,
+      "p50Ms": 2.461,
+      "p95Ms": 2.744
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 3.725,
+      "p50Ms": 3.244,
+      "p95Ms": 3.455
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 2.684,
+      "p50Ms": 2.192,
+      "p95Ms": 2.48
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 2.37,
+      "p50Ms": 2.119,
+      "p95Ms": 2.27
+    }
+  ],
+  "postgres": [
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 258.587,
+      "p50Ms": 138.168,
+      "p95Ms": 246.9
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 233.235,
+      "p50Ms": 116.017,
+      "p95Ms": 223.819
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 235.493,
+      "p50Ms": 127.789,
+      "p95Ms": 224.782
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 225.741,
+      "p50Ms": 111.491,
+      "p95Ms": 216.385
+    },
+    {
+      "requests": 200,
+      "successes": 1,
+      "conflicts": 199,
+      "errors": 0,
+      "elapsedMs": 214.46,
+      "p50Ms": 116.052,
+      "p95Ms": 203.542
+    }
+  ],
+  "scenarios": {
+    "applicationReconnect": "PASS",
+    "expiryReclaim": "PASS",
+    "postgresCleanupIdempotent": "PASS",
+    "redisKeyLossAllowsNewOwner": true,
+    "serverRestartTested": false
+  }
+}

@@ -1,0 +1,33 @@
+name: Staging acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Public staging URL (no credentials)
+        required: true
+        type: string
+      revision:
+        description: Expected full deployed Git SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Verify health, public pages and deployed revision
+        env:
+          STAGING_URL: ${{ inputs.url }}
+          STAGING_EXPECTED_REVISION: ${{ inputs.revision }}
+        run: npm run staging:check
