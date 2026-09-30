@@ -281,12 +281,14 @@ npm run backup
 
 ---
 
-## 10. Sơ đồ ghế (T-11, T-12 / S-05)
+## 10. Sơ đồ ghế (T-11 – T-14 / S-05, S-06)
 
-- Migration tạo `seat_categories` và `seats` theo từng suất diễn. Một suất diễn không thể có hai ghế cùng hàng và số; hạng ghế phải thuộc chính suất diễn đó. Có index theo `showtime_id`, kiểm tra số ghế dương và migration rollback theo thứ tự bảng con trước.
-- `POST /api/organizer/showtimes/:id/seats/import` dành cho admin hoặc chủ sự kiện có vai trò organizer. Gửi `multipart/form-data` với đúng một tệp JSON ở trường `file` (tối đa 5 MB). Phản hồi thành công: `200` và `{ "success": true, "data": { "showtime_id": 1, "seats_count": 2000, "categories_count": 2 } }`.
-- Định dạng JSON hiện tại (chưa có giao diện tải lên T-14):
+- **Mô hình dữ liệu & API nạp sơ đồ:**
+  - Migration tạo bảng `seat_categories` và `seats` theo từng suất diễn (`showtimes`). Một suất diễn không thể có hai ghế cùng hàng và số (`UNIQUE(showtime_id, row, number)`); hạng ghế phải thuộc chính suất diễn đó. Có index theo `showtime_id`, kiểm tra số ghế dương (`number > 0`) và migration rollback theo đúng thứ tự phụ thuộc ngược (`seats` trước, `seat_categories` sau).
+  - API `POST /api/organizer/showtimes/:id/seats/import` dành cho `admin` hoặc chủ sự kiện có vai trò `organizer`. Gửi `multipart/form-data` với đúng một tệp JSON ở trường `file` (tối đa 5 MB). Phản hồi thành công: `200` và `{ "success": true, "data": { "showtime_id": 1, "seats_count": 2000, "categories_count": 2 } }`.
+  - Nạp lại sẽ thay thế toàn bộ ghế và hạng cũ trong **một giao dịch** duy nhất; nếu có bất kỳ lỗi nào, dữ liệu được rollback toàn bộ về trạng thái trước đó. Yêu cầu bị từ chối `409` nếu suất diễn đã có vé bán ra hoặc giữ chỗ còn hiệu lực.
 
+- **Định dạng tệp:** `{ "seats": [ { "row", "number", "category" } ] }`
   ```json
   {
     "seats": [
@@ -295,8 +297,43 @@ npm run backup
     ]
   }
   ```
+  - `row`: Chuỗi ký tự định danh hàng ghế (tối đa 32 ký tự, không được để trống sau khi trim).
+  - `number`: Số thứ tự ghế trong hàng (số nguyên dương từ 1 đến 2.147.483.647).
+  - `category`: Tên hạng ghế (tối đa 100 ký tự, không được để trống sau khi trim).
+  - Giới hạn: Mỗi suất diễn tối đa 10.000 ghế (`TOO_MANY_SEATS`) và tối đa 50 hạng ghế khác nhau (`TOO_MANY_CATEGORIES`).
 
-- Tên hạng ghế được tạo tự động theo suất diễn. Nạp lại sẽ thay toàn bộ ghế và hạng cũ trong **một giao dịch**; nếu bất kỳ ghế nào lỗi, trạng thái trước đó giữ nguyên (lần nạp đầu sẽ còn 0 ghế). Yêu cầu bị từ chối `409` nếu có vé hoặc giữ chỗ còn hiệu lực. Khi các bảng nghiệp vụ vé/giữ chỗ được tích hợp ở sprint sau, chúng phải có `showtime_id` hoặc FK `seat_id → seats.id` để bộ chặn xác định đúng suất diễn. Nếu bảng cũ chỉ có mã ghế dạng chuỗi không có FK, hệ thống chặn nạp lại khi có bất kỳ giữ chỗ còn hiệu lực để tránh mất dữ liệu; các thao tác đặt chỗ cũng cần đồng bộ trên hàng `showtimes` để tránh race với nạp lại.
+- **Giao diện tải lên & xem trước:**
+  - **Trang tải lên:** `/seat-map-upload.html?showtimeId=<id>` (tích hợp liên kết "Sơ đồ ghế" từ danh sách suất diễn trong `public/organizer-events.html`).
+  - Kiểm tra sơ đồ ghế ngay tại trình duyệt phía client bằng `public/seatMapValidator.js` trước khi gửi request tới máy chủ.
+  - Xem trước trực quan lưới ghế bằng canvas hoặc single-path SVG, hiển thị màu sắc theo từng hạng ghế cùng chú giải rõ ràng.
+  - Vô hiệu hoá nút xác nhận khi tệp có lỗi hoặc khi suất diễn không được phép nạp lại (lỗi 409 hoặc 403).
+
+- **Danh sách mã lỗi mà validator trả về:**
+  | Mã lỗi | Ý nghĩa |
+  | :--- | :--- |
+  | `INVALID_JSON` | Tệp JSON sai cú pháp (chỉ rõ vị trí ký tự, dòng và cột). |
+  | `ROOT_NOT_OBJECT` | Dữ liệu gốc không phải đối tượng JSON `{ ... }`. |
+  | `SEATS_MISSING` | Thiếu trường `seats` hoặc `seats` không phải là mảng. |
+  | `SEATS_EMPTY` | Mảng danh sách ghế `seats` bị rỗng. |
+  | `TOO_MANY_SEATS` | Số lượng ghế vượt quá giới hạn tối đa 10.000 ghế. |
+  | `TOO_MANY_CATEGORIES` | Số lượng hạng ghế vượt quá giới hạn tối đa 50 hạng. |
+  | `SEAT_NOT_OBJECT` | Ghế tại vị trí chỉ định không phải đối tượng JSON. |
+  | `FIELD_MISSING` | Ghế thiếu một trong các trường bắt buộc (`row`, `number`, `category`). |
+  | `FIELD_TYPE` | Trường có kiểu dữ liệu sai (`row`/`category` phải là chuỗi, `number` phải là số nguyên). |
+  | `ROW_BLANK` | Tên hàng `row` bị để trống (chuỗi rỗng sau khi trim). |
+  | `ROW_TOO_LONG` | Tên hàng `row` dài quá 32 ký tự. |
+  | `CATEGORY_BLANK` | Tên hạng `category` bị để trống (chuỗi rỗng sau khi trim). |
+  | `CATEGORY_TOO_LONG` | Tên hạng `category` dài quá 100 ký tự. |
+  | `NUMBER_NOT_POSITIVE` | Số ghế `number` không phải số nguyên dương (phải trong khoảng 1 – 2.147.483.647). |
+  | `DUPLICATE_SEAT` | Ghế bị trùng hàng và số `(row, number)` với một ghế đã xuất hiện trước đó trong tệp. |
+  - *Lưu ý:* Validator thu thập tối đa 200 lỗi trong một lần kiểm tra; nếu vượt quá sẽ bật cờ `truncated = true`.
+
+- **Tệp mẫu nằm trong `test/fixtures/seatmaps/`:**
+  - `valid-small.json`: Sơ đồ ghế hợp lệ mẫu với 2 hạng ghế (VIP, Thường).
+  - `multi-error.json`: Tệp chứa nhiều lỗi vi phạm quy chuẩn để kiểm thử hiển thị bảng lỗi.
+  - `invalid-json.json`: Tệp JSON sai cú pháp để kiểm thử lỗi cú pháp.
+  - `duplicate.json`: Tệp chứa các ghế trùng nhau về hàng và số ghế.
+
 - Trên Render dùng Docker, container chạy `npm run migrate:latest` trước `npm start`; không seed hay rollback dữ liệu staging. Hãy kiểm tra backup và CI trước khi merge migration. `npm run verify` vẫn chỉ dùng database tạm và rollback database tạm.
 
 

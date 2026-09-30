@@ -9,6 +9,7 @@ Nguồn yêu cầu: workbook `Bán vé sự kiện có sơ đồ ghế.xlsx`, sh
 - Tệp không phải JSON hợp lệ: báo lỗi định dạng kèm vị trí ký tự, không trả 500.
 - Tệp hợp lệ: xem trước lưới ghế đúng số hàng, số ghế, màu theo hạng trước khi bấm xác nhận nạp.
 - NFR: kiểm tra chạy TRƯỚC giao dịch ghi; giới hạn tệp 5 MB.
+- Luật bổ sung (đã thống nhất khi review): mỗi suất diễn tối đa 50 hạng ghế; vượt thì từ chối với mã TOO_MANY_CATEGORIES. Tối đa 10.000 ghế (TOO_MANY_SEATS). Trả tối đa 200 lỗi, kèm cờ truncated.
 
 ## T-13 — Trình kiểm tra sơ đồ ghế thuần (public/seatMapValidator.js)
 - Hàm thuần `validateSeatMapText(text)` -> `{ valid, errors, seats, summary, truncated }`, không đụng cơ sở dữ liệu.
@@ -20,6 +21,7 @@ Nguồn yêu cầu: workbook `Bán vé sự kiện có sơ đồ ghế.xlsx`, sh
   - `SEATS_MISSING`: Thiếu mảng seats hoặc không phải mảng.
   - `SEATS_EMPTY`: Mảng seats rỗng.
   - `TOO_MANY_SEATS`: Quá 10.000 ghế.
+  - `TOO_MANY_CATEGORIES`: Quá 50 hạng ghế.
   - `SEAT_NOT_OBJECT`: Ghế không phải đối tượng.
   - `FIELD_MISSING`: Thiếu `row`, `number` hoặc `category`.
   - `FIELD_TYPE`: Sai kiểu dữ liệu (`row`/`category` không phải chuỗi; `number` không phải số nguyên).
