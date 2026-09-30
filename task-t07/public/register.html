@@ -69,28 +69,10 @@
         </aside>
 
         <main class="auth-card">
-          <div
-            class="logo-wrapper"
-            style="
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              margin-bottom: 20px;
-            "
-          >
-            <div
-              style="
-                width: 140px;
-                height: 140px;
-                border-radius: 50%;
-                background: #ffffff;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-              "
-            >
+          <div class="logo-wrapper auth-logo register-logo">
+            <div class="logo-disc auth-logo-disc register-logo-disc">
               <svg
+                class="brand-mark"
                 width="130"
                 height="130"
                 viewBox="0 0 240 240"
@@ -209,8 +191,8 @@
             </div>
           </div>
 
-          <div class="register-header" style="text-align: center">
-            <h1 style="margin-bottom: 4px">Đăng ký</h1>
+          <div class="register-header">
+            <h1>Đăng ký</h1>
           </div>
 
           <form id="registerForm" class="auth-form" novalidate>
@@ -336,19 +318,9 @@
 
             <div
               id="successMsg"
+              class="success-message"
               role="alert"
               aria-live="polite"
-              style="
-                display: none;
-                color: #10b981;
-                font-weight: 600;
-                font-size: 14px;
-                text-align: center;
-                margin-top: 10px;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-              "
             >
               <i class="fa-solid fa-circle-check"></i>
               <span>Đăng ký thành công !</span>
@@ -478,15 +450,24 @@
         const fields = result?.fields || {};
         const message = String(result?.message || "");
 
-        if (fields.fullName) return { field: "fullName", message: fields.fullName };
+        if (fields.fullName)
+          return { field: "fullName", message: fields.fullName };
         if (fields.email) return { field: "email", message: fields.email };
-        if (fields.password) return { field: "passwordInput", message: fields.password };
-        if (fields.confirmPassword) return { field: "confirmPasswordInput", message: fields.confirmPassword };
+        if (fields.password)
+          return { field: "passwordInput", message: fields.password };
+        if (fields.confirmPassword)
+          return {
+            field: "confirmPasswordInput",
+            message: fields.confirmPassword,
+          };
 
         if (/email/i.test(message)) return { field: "email", message };
-        if (/họ tên|full name|fullName/i.test(message)) return { field: "fullName", message };
-        if (/mật khẩu|password/i.test(message)) return { field: "passwordInput", message };
-        if (/xác nhận|confirm/i.test(message)) return { field: "confirmPasswordInput", message };
+        if (/họ tên|full name|fullName/i.test(message))
+          return { field: "fullName", message };
+        if (/mật khẩu|password/i.test(message))
+          return { field: "passwordInput", message };
+        if (/xác nhận|confirm/i.test(message))
+          return { field: "confirmPasswordInput", message };
 
         return null;
       }

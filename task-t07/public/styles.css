@@ -29,18 +29,22 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: linear-gradient(135deg, #f2efff 0%, #e5edff 48%, #eef4ff 100%);
   color: var(--text-main);
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .page-glow {
-  position: absolute;
+  position: fixed;
   border-radius: 50%;
   filter: blur(90px);
   pointer-events: none;
@@ -69,7 +73,10 @@ body {
   position: relative;
   z-index: 1;
   width: 100%;
+  min-height: 100vh;
+  height: auto;
   display: flex;
+  align-items: center;
   justify-content: center;
   padding: 32px 20px;
 }
@@ -387,11 +394,48 @@ body {
 }
 
 .auth-card {
+  min-width: 0;
   background: rgba(255, 255, 255, 0.72);
   padding: 28px 30px 30px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.auth-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.login-logo {
+  margin-bottom: 12px;
+}
+
+.auth-logo-disc {
+  width: 140px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.login-logo-disc {
+  width: 110px;
+}
+
+.brand-mark {
+  display: block;
+  width: min(130px, 100%);
+  height: auto;
+}
+
+.login-logo .brand-mark {
+  width: min(100px, 100%);
 }
 
 .brand-logo {
@@ -421,6 +465,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.register-header {
+  text-align: center;
+}
+
+.register-header h1 {
+  margin-bottom: 4px;
 }
 
 .field-group {
@@ -458,7 +510,8 @@ body {
   border: 1.8px solid #cbd5e1;
   border-radius: 8px;
   padding: 0 12px;
-  height: 38px !important;
+  min-height: 46px;
+  height: auto;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
@@ -474,11 +527,12 @@ body {
 
 .custom-input-group input {
   width: 100%;
-  height: 100%;
+  min-width: 0;
+  min-height: 42px;
   border: none !important;
   outline: none !important;
   background: transparent !important;
-  font-size: 13.5px;
+  font-size: 16px;
   color: #0f172a;
   font-weight: 500;
   padding: 0;
@@ -720,8 +774,8 @@ input:-webkit-autofill:active {
 
 .btn-submit-register {
   width: 100%;
-  height: 42px;
-  margin-top: auto;
+  min-height: 46px;
+  margin-top: 4px;
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: #ffffff;
   font-weight: 700;
@@ -733,8 +787,6 @@ input:-webkit-autofill:active {
   transition:
     transform 0.2s,
     box-shadow 0.2s;
-  position: sticky;
-  bottom: 0;
 }
 
 .btn-submit-register:hover {
@@ -834,27 +886,126 @@ input:-webkit-autofill:active {
   text-decoration: underline;
 }
 
-@media (max-width: 860px) {
+.footer-text a:focus-visible,
+button:focus-visible,
+.toggle-password:focus-visible {
+  outline: 3px solid rgba(77, 155, 247, 0.6);
+  outline-offset: 3px;
+}
+
+.btn-submit-login {
+  width: 100%;
+  min-height: 46px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn-submit-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+}
+
+.success-message {
+  display: none;
+  color: #10b981;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+#successMsgLogin {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .auth-shell {
+    min-height: 0;
+    padding: 20px 18px;
+  }
+
   .auth-panel {
     grid-template-columns: 1fr;
   }
 
   .left-side {
-    padding: 30px 26px 14px;
+    padding: 26px 28px 12px;
+  }
+
+  .left-side h2 {
+    margin: 16px 0 8px;
+    font-size: clamp(1.7rem, 4vw, 2.25rem);
+  }
+
+  .hero-description {
+    margin-bottom: 18px;
+    font-size: 0.94rem;
+  }
+
+  .feature-list {
+    gap: 10px;
+  }
+
+  .feature-item {
+    font-size: 0.92rem;
+  }
+
+  .feature-icon {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    font-size: 1rem;
   }
 
   .scene {
-    min-height: 140px;
+    min-height: 94px;
+    margin-top: 8px;
+  }
+
+  .radar-panel {
+    width: 132px;
+    height: 132px;
+  }
+
+  .prism-panel {
+    width: 126px;
+    height: 126px;
+  }
+
+  .prism {
+    width: 76px;
+    height: 76px;
   }
 
   .auth-card {
-    padding: 24px 22px 26px;
+    padding: 24px 28px 28px;
   }
 }
 
 @media (max-width: 480px) {
   .auth-shell {
-    padding: 18px 14px;
+    padding: 12px 10px;
+  }
+
+  .auth-panel {
+    border-radius: 18px;
   }
 
   .promo-badge {
@@ -863,10 +1014,91 @@ input:-webkit-autofill:active {
   }
 
   .left-side h2 {
-    font-size: 2.1rem;
+    font-size: 1.65rem;
+  }
+
+  .left-side {
+    padding: 20px 18px 8px;
+  }
+
+  .hero-description {
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .feature-list {
+    gap: 8px;
+  }
+
+  .feature-item {
+    gap: 9px;
+    font-size: 0.84rem;
+  }
+
+  .scene {
+    min-height: 68px;
+  }
+
+  .radar-panel {
+    width: 104px;
+    height: 104px;
+    left: -8px;
+    bottom: -22px;
+  }
+
+  .prism-panel {
+    width: 104px;
+    height: 104px;
+    right: -8px;
+  }
+
+  .prism {
+    width: 62px;
+    height: 62px;
+  }
+
+  .auth-card {
+    padding: 20px 18px 22px;
+  }
+
+  .register-logo {
+    margin-bottom: 12px;
+  }
+
+  .register-logo-disc {
+    width: 104px;
   }
 
   .auth-card h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
+    margin-bottom: 14px;
+  }
+
+  .register-header h1 {
+    margin-bottom: 4px;
+  }
+
+  .auth-form {
+    gap: 9px;
+  }
+
+  .footer-text {
+    margin-top: 14px;
+    font-size: 0.86rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
