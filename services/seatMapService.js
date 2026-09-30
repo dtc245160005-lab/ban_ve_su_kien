@@ -20,6 +20,7 @@ async function hasBooking(trx, table, showtimeId) {
   const hasShowtimeId = await trx.schema.hasColumn(table, 'showtime_id');
   const hasSeatId = await trx.schema.hasColumn(table, 'seat_id');
   const hasExpiresAt = table === 'seat_holds' && await trx.schema.hasColumn(table, 'expires_at');
+  const hasOrderId = table === 'seat_holds' && await trx.schema.hasColumn(table, 'order_id');
 
   let query = trx(table).select(trx.raw('1')).first();
   if (hasShowtimeId) {
@@ -51,7 +52,13 @@ async function hasBooking(trx, table, showtimeId) {
     if (!existingSeat) return false;
   }
 
-  if (hasExpiresAt) query = query.where('expires_at', '>', trx.fn.now());
+  if (hasExpiresAt) {
+    query = hasOrderId
+      ? query.where((builder) => builder
+        .whereNotNull('order_id')
+        .orWhere('expires_at', '>', trx.fn.now()))
+      : query.where('expires_at', '>', trx.fn.now());
+  }
   return Boolean(await query);
 }
 

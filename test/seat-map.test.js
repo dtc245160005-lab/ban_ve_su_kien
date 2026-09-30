@@ -30,7 +30,6 @@ describe('T-11 / T-12 seat map migration and import', () => {
   let ownerCookie;
   let otherCookie;
   let buyerCookie;
-  let createdHolds = false;
   let createdTickets = false;
 
   async function userWithRole(role, index, hash, roleIds) {
@@ -96,7 +95,6 @@ describe('T-11 / T-12 seat map migration and import', () => {
   after(async () => {
     if (server) await new Promise((resolve) => server.close(resolve));
     if (createdTickets) await db.schema.dropTableIfExists('tickets');
-    if (createdHolds) await db.schema.dropTableIfExists('seat_holds');
     if (event) {
       await db('showtimes').where({ event_id: event.id }).del();
       await db('events').where({ id: event.id }).del();
@@ -182,17 +180,28 @@ describe('T-11 / T-12 seat map migration and import', () => {
   });
 
   test('expired holds do not block; active holds and tickets block replacement', async () => {
-    if (!await db.schema.hasTable('seat_holds')) {
-      await db.schema.createTable('seat_holds', (table) => {
-        table.increments('id').primary();
-        table.string('seat_id').notNullable(); // Legacy hold schema has no showtime FK.
-        table.timestamp('expires_at', { useTz: true }).notNullable();
-      });
-      createdHolds = true;
-    }
-    await db('seat_holds').insert({ seat_id: 'legacy-A1', expires_at: new Date(Date.now() - 1000) });
+    let seat = await db('seats').where({ showtime_id: showtime.id }).first('id');
+    await db('seat_holds').insert({
+      seat_id: seat.id,
+      user_id: buyer.id,
+      expires_at: db.raw("CURRENT_TIMESTAMP - INTERVAL '1 second'"),
+    });
     assert.equal((await upload(showtime.id, seatMap(10), ownerCookie)).status, 200);
-    await db('seat_holds').insert({ seat_id: 'legacy-A2', expires_at: new Date(Date.now() + 60000) });
+    seat = await db('seats').where({ showtime_id: showtime.id }).first('id');
+    await db('seat_holds').insert({
+      seat_id: seat.id,
+      user_id: buyer.id,
+      expires_at: db.raw("CURRENT_TIMESTAMP + INTERVAL '1 minute'"),
+    });
+    assert.equal((await upload(showtime.id, seatMap(5), ownerCookie)).status, 409);
+    await db('seat_holds').del();
+
+    await db('seat_holds').insert({
+      seat_id: seat.id,
+      user_id: buyer.id,
+      order_id: 9003,
+      expires_at: db.raw("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
+    });
     assert.equal((await upload(showtime.id, seatMap(5), ownerCookie)).status, 409);
     await db('seat_holds').del();
 

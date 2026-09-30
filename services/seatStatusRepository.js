@@ -4,9 +4,10 @@ function createSeatStatusRepository(customDb = defaultDb) {
   async function findSeatMapByShowtime(showtimeId) {
     /*
      * T-19 hot query: showtime metadata and every seat are returned by one SQL
-     * statement. T-22/T-36 can replace the two boolean constants below with
-     * EXISTS/LEFT JOIN projections for active holds and issued tickets without
-     * changing the service, API contract, or UI.
+     * statement. Active holds are pre-aggregated once and their expiry is
+     * evaluated by PostgreSQL CURRENT_TIMESTAMP, so
+     * correctness never depends on the cleanup job cadence or the app clock.
+     * T-36 can replace is_sold when the tickets table is available.
      */
     const result = await customDb.raw(`
       WITH requested_showtime AS (
@@ -30,12 +31,18 @@ function createSeatStatusRepository(customDb = defaultDb) {
           )::integer AS row_order,
           seats.seat_number,
           seat_categories.name AS category_name,
-          FALSE AS is_held,
+          active_holds.seat_id IS NOT NULL AS is_held,
           FALSE AS is_sold
         FROM seats
         JOIN seat_categories
           ON seat_categories.id = seats.category_id
           AND seat_categories.showtime_id = seats.showtime_id
+        LEFT JOIN (
+          SELECT DISTINCT seat_id
+          FROM seat_holds
+          WHERE order_id IS NOT NULL
+            OR expires_at > CURRENT_TIMESTAMP
+        ) AS active_holds ON active_holds.seat_id = seats.id
         WHERE seats.showtime_id = ?
       )
       SELECT

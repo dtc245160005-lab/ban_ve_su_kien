@@ -358,3 +358,16 @@ query); p95 tải trang đến khi Canvas vẽ xong là **153,6 ms** trên deskt
 **52,2 ms** ở viewport 390 × 844 (10 lượt mỗi cấu hình). Chi tiết hợp đồng và
 điểm nối bảng giữ ghế/vé nằm tại `docs/ac/s09.md`.
 
+---
+
+## 12. Tự động giải phóng ghế hết hạn (T-27, T-28 / S-12)
+
+- Nền tối thiểu từ T-22 là bảng `seat_holds`; chưa thêm API giữ/gia hạn ghế.
+- Khi server khởi động, backlog giữ ghế hết hạn được dọn trước khi nhận request;
+  job tiếp tục chạy mỗi 60 giây và log số bản ghi đã xóa.
+- Chỉ lượt giữ chưa gắn `order_id` mới bị xóa. Chạy lại nhiều lần cho cùng kết
+  quả và các lượt chạy chồng nhau được gộp.
+- API T-19 so sánh `expires_at` với `CURRENT_TIMESTAMP` của PostgreSQL, nên ghế
+  vừa hết hạn hiện `AVAILABLE` ngay cả trước lượt job kế tiếp và không phụ thuộc
+  clock của máy chạy ứng dụng.
+- Chi tiết tiêu chí và kiểm thử: `docs/ac/s12.md`.

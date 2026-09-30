@@ -24,6 +24,7 @@ describe('Logger Sanitization & Event Logging (lib/logger.js)', () => {
         method: 'post',
         path: '/api/events?email=user@test.com&token=xyz',
         status: 403,
+        count: 17,
         at: '2026-09-28T12:00:00.000Z',
         // Các trường nhạy cảm cần bị loại bỏ:
         email: 'user@test.com',
@@ -46,6 +47,7 @@ describe('Logger Sanitization & Event Logging (lib/logger.js)', () => {
       assert.strictEqual(entry.method, 'POST');
       assert.strictEqual(entry.path, '/api/events');
       assert.strictEqual(entry.status, 403);
+      assert.strictEqual(entry.count, 17);
       assert.strictEqual(entry.at, '2026-09-28T12:00:00.000Z');
 
       // Đảm bảo không có trường nhạy cảm nào lọt vào
