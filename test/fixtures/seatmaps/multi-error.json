@@ -1,0 +1,13 @@
+{
+  "seats": [
+    "invalid_seat_string",
+    { "row": "A", "category": "VIP" },
+    { "row": 123, "number": "not_a_number", "category": true },
+    { "row": "   ", "number": 1, "category": "VIP" },
+    { "row": "B", "number": 2, "category": "SuperLongCategoryNameExceedingOneHundredCharactersSuperLongCategoryNameExceedingOneHundredCharacters1" },
+    { "row": "B", "number": -5, "category": "VIP" },
+    { "row": "RowNameExceedingThirtyTwoCharactersLong", "number": 3, "category": "VIP" },
+    { "row": "C", "number": 1, "category": "VIP" },
+    { "row": "C", "number": 1, "category": "Thường" }
+  ]
+}

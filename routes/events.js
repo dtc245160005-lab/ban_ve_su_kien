@@ -212,7 +212,11 @@ function createOrganizerEventsRouter(options = {}) {
       return res.status(200).json({ success: true, data: result });
     } catch (error) {
       if (error.status) {
-        return res.status(error.status).json({ success: false, message: error.message });
+        const body = { success: false, message: error.message };
+        if (error.errors) {
+          body.errors = error.errors;
+        }
+        return res.status(error.status).json(body);
       }
       console.error('Error importing seat map:', error.code || 'unexpected error');
       return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });

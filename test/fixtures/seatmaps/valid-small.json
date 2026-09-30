@@ -1,0 +1,14 @@
+{
+  "seats": [
+    { "row": "A", "number": 1, "category": "VIP" },
+    { "row": "A", "number": 2, "category": "VIP" },
+    { "row": "A", "number": 3, "category": "VIP" },
+    { "row": "B", "number": 1, "category": "Thường" },
+    { "row": "B", "number": 2, "category": "Thường" },
+    { "row": "B", "number": 3, "category": "Thường" },
+    { "row": "B", "number": 4, "category": "Thường" },
+    { "row": "C", "number": 1, "category": "Thường" },
+    { "row": "C", "number": 2, "category": "Thường" },
+    { "row": "C", "number": 3, "category": "Thường" }
+  ]
+}
