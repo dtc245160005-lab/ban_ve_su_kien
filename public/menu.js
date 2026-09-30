@@ -4,6 +4,7 @@
     RECONCILIATION: 'Đối soát',
     TICKET_CHECK: 'Soát vé',
     BUYER_TICKETS: 'Vé của tôi',
+    STAFF_MANAGEMENT: 'Quản lý nhân viên',
   };
 
   function visibleMenus(roles) {
@@ -18,6 +19,10 @@
 
     if (isOrganizer || isAdmin) {
       items.push(MENU_ITEMS.EVENT_MANAGEMENT);
+    }
+
+    if (isAdmin) {
+      items.push(MENU_ITEMS.STAFF_MANAGEMENT);
     }
 
     if (isAccountant || isAdmin) {
