@@ -6,8 +6,9 @@ Dự án backend bán vé sự kiện xây dựng trên Node.js, Express, Knex, 
 
 ## Chạy dự án
 
-Yêu cầu Node.js 20.19+ (hoặc 22.13+/24+), PostgreSQL 15+ và Redis 7+. Tạo `.env` từ `.env.example`
-và điền cấu hình trước khi chạy. Với Docker Desktop đang chạy:
+Yêu cầu Node.js 20.19+ (hoặc 22.13+/24+), PostgreSQL 15+ và Redis 7+.
+
+### Cách 1: Sử dụng Docker Desktop (Nếu máy có Docker)
 
 ```bash
 # 1. Tạo cấu hình (PowerShell: Copy-Item .env.example .env)
@@ -31,9 +32,41 @@ npm run verify
 npm start
 ```
 
-Nếu PostgreSQL/Redis đã được cài trực tiếp và đang chạy, bỏ qua bước Docker,
-đặt `DB_CONNECTION_STRING` và `REDIS_URL` theo các dịch vụ đó. Database ứng dụng
-phải được tạo trước; `setup` không tạo hay xóa database.
+### Cách 2: Chạy trực tiếp với PostgreSQL & Redis cài trên máy (Local không dùng Docker)
+
+Nếu máy bạn đã cài PostgreSQL và Redis trực tiếp:
+1. **Sao chép cấu hình:**
+   - Trên PowerShell: `Copy-Item .env.example .env`
+   - Trên Linux / macOS / Git Bash: `cp .env.example .env`
+2. **Cập nhật thông tin trong `.env`:**
+   - Mở file `.env`, cập nhật `DB_CONNECTION_STRING` với mật khẩu PostgreSQL thực tế của máy bạn khi cài đặt (thay thế `your_postgres_password`).
+   - Đảm bảo `REDIS_URL` trỏ đúng vào địa chỉ Redis đang chạy (mặc định: `redis://localhost:6379`).
+3. **Cài đặt dependencies:**
+   ```bash
+   npm ci
+   ```
+4. **Tạo database ứng dụng nếu chưa có (không cần Docker hoặc `psql`):**
+   ```bash
+   npm run db:create
+   ```
+   *(Script sẽ tự động kết nối và tạo cơ sở dữ liệu `ban_ve_su_kien` một cách an toàn).*
+5. **Kiểm tra môi trường & khởi tạo bảng / dữ liệu demo:**
+   ```bash
+   npm run doctor
+   npm run setup
+   ```
+   *(Lệnh `setup` cũng sẽ tự động phát hiện và tạo database nếu bạn chưa chạy bước 4).*
+6. **Kiểm tra toàn diện trên database TẠM:**
+   ```bash
+   npm run build
+   npm run verify
+   ```
+7. **Khởi động ứng dụng:**
+   ```bash
+   npm start
+   ```
+
+---
 
 Chạy toàn bộ stack bằng Docker: tạo `.env`, cấu hình cổng không trùng với dịch vụ
 đang chạy rồi dùng `docker compose up --build`. Lệnh khởi động trong Dockerfile và `docker-compose.yml`
@@ -202,13 +235,62 @@ npm test
 ```
 
 ### Kiểm thử End-to-End Sprint 1 (E2E):
-```bash
-npm run e2e:sprint1
-```
-Chạy kiểm thử toàn bộ luồng nghiệp vụ Sprint 1 (Health, Đăng ký, Đăng nhập, Kích hoạt, Quản lý sự kiện, Suất diễn, Phân quyền và Khoá tài khoản) qua giao thức HTTP thuần:
-- Có thể trỏ tới bất kỳ máy chủ nào qua biến `BASE_URL` (mặc định `http://localhost:8090`).
-- Khi chạy local, đặt `DEV_MAIL_FILE` để tự động đọc liên kết kích hoạt từ log email dev.
-- Đặt `E2E_LOCKOUT=1` để chạy kiểm tra khoá đăng nhập sau 5 lần sai mật khẩu (tránh khoá tài khoản trên staging).
+
+Bộ kiểm thử E2E kiểm tra toàn bộ 24 tiêu chí nghiệp vụ Sprint 1 (H1-H2, R1-R4, L1-L2, A1-A4, L3, S1, P1-P3, E1-E5, O1, K1) qua giao thức HTTP thuần:
+
+#### 1. Chạy cơ bản (mặc định kiểm tra `http://localhost:8090`):
+- **Trên mọi hệ điều hành (PowerShell, Bash, CMD):**
+  ```bash
+  npm run e2e:sprint1
+  ```
+
+#### 2. Chạy kèm kiểm tra khoá đăng nhập (K1 - sai 5 lần nhận HTTP 429):
+- **Khuyên dùng (chạy đa nền tảng, không phụ thuộc shell):**
+  ```bash
+  npm run e2e:sprint1:lockout
+  ```
+- **Hoặc qua tham số dòng lệnh CLI:**
+  ```bash
+  node scripts/e2e-sprint1.js --lockout
+  ```
+- **Trên Windows PowerShell:**
+  ```powershell
+  $env:E2E_LOCKOUT="1"; npm run e2e:sprint1
+  ```
+- **Trên Linux / macOS / Git Bash:**
+  ```bash
+  E2E_LOCKOUT=1 npm run e2e:sprint1
+  ```
+
+#### 3. Chạy với log kích hoạt email (`DEV_MAIL_FILE`):
+Khi chạy máy chủ ở chế độ dev (`MAIL_TRANSPORT=dev`), liên kết kích hoạt được ghi ra console/file. Để runner E2E tự động đọc token kích hoạt tài khoản:
+- **Khởi động server có ghi file log dev mail:**
+  - PowerShell: `$env:DEV_MAIL_FILE=".\dev_mail.log"; npm start`
+  - Bash: `DEV_MAIL_FILE=./dev_mail.log npm start`
+- **Chạy E2E với file log:**
+  - Qua tham số CLI (mọi shell):
+    ```bash
+    node scripts/e2e-sprint1.js --mail-file=./dev_mail.log --lockout
+    ```
+  - PowerShell:
+    ```powershell
+    $env:DEV_MAIL_FILE=".\dev_mail.log"; npm run e2e:sprint1:lockout
+    ```
+  - Bash:
+    ```bash
+    DEV_MAIL_FILE=./dev_mail.log npm run e2e:sprint1:lockout
+    ```
+*(Ghi chú: Nếu chạy local mà không truyền tham số, runner sẽ tự động kiểm tra nếu có file `.dev_mail_local.log` hoặc `.dev_mail.log` trong thư mục gốc).*
+
+#### 4. Kiểm thử máy chủ staging (Render):
+- **PowerShell:**
+  ```powershell
+  $env:BASE_URL="https://ban-ve-su-kien.onrender.com"; npm run e2e:sprint1
+  ```
+- **Bash / Linux / macOS:**
+  ```bash
+  BASE_URL=https://ban-ve-su-kien.onrender.com npm run e2e:sprint1
+  ```
 
 Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
 - `test/fresh-clone-repair.test.js`: Kiểm thử kiểm tra schema, seed không có DEMO_* và vá schema lệch cho DB cũ.

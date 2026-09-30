@@ -1,8 +1,44 @@
 const fs = require('node:fs');
+const path = require('node:path');
 require('dotenv').config({ quiet: true });
 
-const BASE_URL = (process.env.BASE_URL || 'http://localhost:8090').replace(/\/+$/, '');
-const DEV_MAIL_FILE = process.env.DEV_MAIL_FILE || null;
+// Hỗ trợ cả biến môi trường LẪN tham số dòng lệnh CLI (phù hợp cho PowerShell & Bash)
+// Ví dụ: node scripts/e2e-sprint1.js --lockout --mail-file=./dev_mail.log
+const args = process.argv.slice(2);
+let cliLockout = false;
+let cliMailFile = null;
+let cliBaseUrl = null;
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === '--lockout' || arg === '--lockout=1' || arg === '--lockout=true') {
+    cliLockout = true;
+  } else if (arg.startsWith('--mail-file=')) {
+    cliMailFile = arg.split('=').slice(1).join('=');
+  } else if (arg === '--mail-file' && i + 1 < args.length) {
+    cliMailFile = args[++i];
+  } else if (arg.startsWith('--base-url=')) {
+    cliBaseUrl = arg.split('=').slice(1).join('=');
+  } else if (arg === '--base-url' && i + 1 < args.length) {
+    cliBaseUrl = args[++i];
+  }
+}
+
+const BASE_URL = (cliBaseUrl || process.env.BASE_URL || 'http://localhost:8090').replace(/\/+$/, '');
+let DEV_MAIL_FILE = cliMailFile || process.env.DEV_MAIL_FILE || null;
+
+// Tự động tìm dev mail log nếu chạy local mà chưa cấu hình biến môi trường
+if (!DEV_MAIL_FILE && (BASE_URL.includes('localhost') || BASE_URL.includes('127.0.0.1'))) {
+  for (const candidate of ['.dev_mail_local.log', '.dev_mail.log']) {
+    const p = path.resolve(__dirname, '..', candidate);
+    if (fs.existsSync(p)) {
+      DEV_MAIL_FILE = p;
+      break;
+    }
+  }
+}
+
+const IS_LOCKOUT = cliLockout || process.env.E2E_LOCKOUT === '1' || process.env.E2E_LOCKOUT === 'true';
 
 const ORGANIZER_EMAIL =
   process.env.E2E_ORGANIZER_EMAIL ||
@@ -598,8 +634,8 @@ async function run() {
   }
 
   // K1: Sai mật khẩu 5 lần với một email test riêng -> lần 6 nhận 429 kèm retryAfterSeconds
-  // CHỈ chạy khi đặt E2E_LOCKOUT=1
-  if (process.env.E2E_LOCKOUT === '1') {
+  // CHỈ chạy khi đặt E2E_LOCKOUT=1 hoặc cờ --lockout
+  if (IS_LOCKOUT) {
     const lockoutEmail = `lockout.${Date.now()}.${Math.random().toString(36).substring(2, 6)}@example.test`;
     try {
       let attemptsOk = true;

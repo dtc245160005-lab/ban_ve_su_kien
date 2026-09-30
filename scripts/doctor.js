@@ -78,10 +78,17 @@ async function inspectEnvironment({ env = process.env, root = path.resolve(__dir
       }
     }
   } catch (error) {
-    const hint = { ECONNREFUSED: 'Kiểm tra host/port và dịch vụ DB.',
-      '28P01': 'Kiểm tra thông tin đăng nhập trong DB_CONNECTION_STRING.',
-      '3D000': 'Database chưa tồn tại; tạo database trước khi setup.' }[error.code];
-    errors.push(`Không kết nối/kiểm tra được PostgreSQL. ${hint || 'Kiểm tra DB_CONNECTION_STRING và dịch vụ DB.'}`);
+    if (error.code === '28P01' || error.code === '28000') {
+      errors.push('Sai thông tin xác thực PostgreSQL (mã 28P01). Vui lòng cập nhật mật khẩu PostgreSQL thực tế của bạn trong file .env (biến DB_CONNECTION_STRING).');
+    } else if (error.code === '3D000') {
+      errors.push('Database chưa tồn tại (mã 3D000). Chạy "npm run db:create" để tự động tạo database ứng dụng.');
+    } else if (error.code === 'ECONNREFUSED') {
+      errors.push('Không thể kết nối đến máy chủ PostgreSQL (ECONNREFUSED). Hãy đảm bảo dịch vụ PostgreSQL đang chạy và đúng cổng.');
+    } else if (error.code === 'ENOTFOUND') {
+      errors.push('Không tìm thấy máy chủ PostgreSQL (ENOTFOUND). Kiểm tra host trong DB_CONNECTION_STRING.');
+    } else {
+      errors.push(`Không kết nối/kiểm tra được PostgreSQL (${error.code || error.message}). Kiểm tra DB_CONNECTION_STRING và dịch vụ DB.`);
+    }
   }
   finally { await pg.end().catch(() => {}); }
   try {
