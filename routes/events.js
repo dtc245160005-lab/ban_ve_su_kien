@@ -216,6 +216,9 @@ function createOrganizerEventsRouter(options = {}) {
         if (error.errors) {
           body.errors = error.errors;
         }
+        if (error.truncated !== undefined) {
+          body.truncated = error.truncated;
+        }
         return res.status(error.status).json(body);
       }
       console.error('Error importing seat map:', error.code || 'unexpected error');

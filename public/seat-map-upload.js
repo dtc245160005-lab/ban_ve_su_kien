@@ -175,10 +175,12 @@
     reader.readAsText(file);
   };
 
+  let isSubmitting = false;
+
   // Form submit handler
   uploadSeatMapForm.onsubmit = async (e) => {
     e.preventDefault();
-    if (uploadBtn.disabled) return;
+    if (uploadBtn.disabled || isSubmitting) return;
     clearMessages();
 
     if (!selectedFile) {
@@ -193,6 +195,7 @@
     }
 
     // Chặn bấm hai lần
+    isSubmitting = true;
     uploadBtn.disabled = true;
     uploadMsg.className = 'message warning';
     uploadMsg.textContent = 'Đang nạp sơ đồ ghế lên máy chủ...';
@@ -220,14 +223,14 @@
       if (res.status === 403) {
         uploadMsg.className = 'message error';
         uploadMsg.textContent = 'Bạn không có quyền với suất diễn này';
-        uploadBtn.disabled = false;
+        uploadBtn.disabled = true;
         return;
       }
 
       if (res.status === 409) {
         uploadMsg.className = 'message error';
         uploadMsg.textContent = resData.message || 'Không thể nạp lại khi suất diễn có vé hoặc ghế đang giữ.';
-        uploadBtn.disabled = false;
+        uploadBtn.disabled = true;
         return;
       }
 
@@ -237,18 +240,22 @@
         if (resData.errors && Array.isArray(resData.errors)) {
           renderErrors(resData.errors, Boolean(resData.truncated));
         }
-        uploadBtn.disabled = false;
+        uploadBtn.disabled = true;
         return;
       }
 
+      // 500 hoặc lỗi hệ thống khác -> cho bấm lại
       uploadMsg.className = 'message error';
-      uploadMsg.textContent = resData.message || 'Lỗi hệ thống khi nạp sơ đồ ghế.';
+      uploadMsg.textContent = resData.message || 'Hệ thống đang bận. Vui lòng thử lại sau.';
       uploadBtn.disabled = false;
     } catch (err) {
       console.error('Lỗi gửi tệp sơ đồ ghế:', err);
+      // Lỗi kết nối / mạng -> cho bấm lại
       uploadMsg.className = 'message error';
-      uploadMsg.textContent = 'Lỗi kết nối khi nạp sơ đồ ghế.';
+      uploadMsg.textContent = 'Lỗi kết nối khi nạp sơ đồ ghế. Vui lòng thử lại.';
       uploadBtn.disabled = false;
+    } finally {
+      isSubmitting = false;
     }
   };
 

@@ -1,32 +1,31 @@
 (function (global) {
-  const CATEGORY_COLORS = [
-    '#4f46e5', // Indigo
-    '#059669', // Emerald
-    '#d97706', // Amber
-    '#dc2626', // Red
-    '#0891b2', // Cyan
-    '#7c3aed', // Violet
-    '#db2777', // Pink
-    '#ea580c', // Orange
-    '#2563eb', // Blue
-    '#4b5563', // Gray
-  ];
-
-  const colorCache = new Map();
-
-  function getCategoryColor(categoryName, index) {
-    if (!categoryName) return '#9ca3af';
-    if (colorCache.has(categoryName)) {
-      return colorCache.get(categoryName);
-    }
-    const idx = index !== undefined ? index : colorCache.size;
-    const color = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
-    colorCache.set(categoryName, color);
-    return color;
+  function hslToHex(h, s, l) {
+    const lNorm = l / 100;
+    const a = s * Math.min(lNorm, 1 - lNorm) / 100;
+    const f = (n) => {
+      const k = (n + h / 30) % 12;
+      const color = lNorm - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
   }
 
-  function resetColorCache() {
-    colorCache.clear();
+  function colorForCategory(index) {
+    const idx = typeof index === 'number' && index >= 0 ? Math.floor(index) : 0;
+    // Golden ratio angle gives maximal hue separation across all 50 categories
+    const hue = Math.round((idx * 137.507764) % 360);
+    return hslToHex(hue, 70, 45);
+  }
+
+  function buildPreviewModel(summary) {
+    if (!summary || !Array.isArray(summary.categories)) {
+      return [];
+    }
+    return summary.categories.map((cat, idx) => ({
+      category: cat.name,
+      color: colorForCategory(idx),
+      seatCount: typeof cat.count === 'number' ? cat.count : 0,
+    }));
   }
 
   function escapeHtml(str) {
@@ -39,42 +38,57 @@
       .replace(/'/g, '&#39;');
   }
 
-  function renderLegend(legendContainer, categories) {
+  function renderLegend(legendContainer, categoriesOrSummary) {
     if (!legendContainer) return;
     legendContainer.innerHTML = '';
-    if (!categories || !categories.length) return;
 
-    categories.forEach((cat, idx) => {
-      const color = getCategoryColor(cat.name, idx);
-      const item = document.createElement('div');
-      item.className = 'legend-item';
-      item.style.display = 'inline-flex';
-      item.style.alignItems = 'center';
-      item.style.gap = '6px';
-      item.style.marginRight = '16px';
-      item.style.marginBottom = '8px';
-      item.style.fontSize = '14px';
+    let model = [];
+    if (categoriesOrSummary && Array.isArray(categoriesOrSummary.categories)) {
+      model = buildPreviewModel(categoriesOrSummary);
+    } else if (Array.isArray(categoriesOrSummary)) {
+      if (categoriesOrSummary.length > 0 && 'category' in categoriesOrSummary[0] && 'color' in categoriesOrSummary[0]) {
+        model = categoriesOrSummary;
+      } else {
+        model = buildPreviewModel({ categories: categoriesOrSummary });
+      }
+    }
 
-      item.innerHTML = `
-        <span class="legend-color-box" style="display:inline-block; width:16px; height:16px; border-radius:4px; background-color:${color};"></span>
-        <span class="legend-name" style="font-weight:600;">${escapeHtml(cat.name)}</span>
-        <span class="legend-count" style="color:var(--muted, #6b7280);">(${cat.count} ghế)</span>
+    if (!model || !model.length) return;
+    const doc = (legendContainer && legendContainer.ownerDocument) || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+
+    model.forEach((item) => {
+      const itemEl = doc.createElement('div');
+      itemEl.className = 'legend-item';
+      itemEl.style.display = 'inline-flex';
+      itemEl.style.alignItems = 'center';
+      itemEl.style.gap = '6px';
+      itemEl.style.marginRight = '16px';
+      itemEl.style.marginBottom = '8px';
+      itemEl.style.fontSize = '14px';
+
+      itemEl.innerHTML = `
+        <span class="legend-color-box" style="display:inline-block; width:16px; height:16px; border-radius:4px; background-color:${item.color};"></span>
+        <span class="legend-name" style="font-weight:600;">${escapeHtml(item.category)}</span>
+        <span class="legend-count" style="color:var(--muted, #6b7280);">(${item.seatCount} ghế)</span>
       `;
-      legendContainer.appendChild(item);
+      legendContainer.appendChild(itemEl);
     });
   }
 
   function renderSeatGrid(gridContainer, legendContainer, summary) {
-    resetColorCache();
     if (!summary || !summary.rows || !summary.rows.length) {
       if (gridContainer) gridContainer.innerHTML = '';
       if (legendContainer) legendContainer.innerHTML = '';
       return;
     }
 
+    const previewModel = buildPreviewModel(summary);
+    const categoryColorMap = new Map(previewModel.map((item) => [item.category, item.color]));
+
     // Render legend
-    if (legendContainer && summary.categories) {
-      renderLegend(legendContainer, summary.categories);
+    if (legendContainer) {
+      renderLegend(legendContainer, previewModel);
     }
 
     if (!gridContainer) return;
@@ -128,7 +142,7 @@
         if (Array.isArray(r.seats)) {
           r.seats.forEach((seat, sIdx) => {
             const x = padding + labelWidth + sIdx * (seatSize + gap);
-            const color = getCategoryColor(seat.category);
+            const color = categoryColorMap.get(seat.category) || '#9ca3af';
 
             // Seat rectangle
             ctx.fillStyle = color;
@@ -141,38 +155,24 @@
           });
         }
       });
-
-      // Clear any SVG fallback if canvas rendered successfully
-      const svgWrapper = gridContainer.querySelector('.svg-grid-wrapper');
-      if (svgWrapper) svgWrapper.innerHTML = '';
     } else {
-      // SVG Rendering: 1 path per category to avoid 2000 DOM nodes!
-      if (canvas) {
-        canvas.style.display = 'none';
-        canvas.setAttribute('data-rendered', 'true');
-      }
-
+      // SVG Fallback: Exactly 1 path per category (max 50 paths) to respect DOM node limits
       const categoryPaths = new Map();
-      if (Array.isArray(summary.categories)) {
-        summary.categories.forEach((cat, idx) => {
-          categoryPaths.set(cat.name, {
-            color: getCategoryColor(cat.name, idx),
-            d: '',
-          });
+      previewModel.forEach((cat) => {
+        categoryPaths.set(cat.category, {
+          color: cat.color,
+          d: '',
         });
-      }
+      });
 
-      let rowLabelsSvg = '';
       summary.rows.forEach((r, rIdx) => {
         const y = padding + rIdx * (seatSize + gap);
-        rowLabelsSvg += `<text x="${padding + labelWidth / 2}" y="${y + seatSize / 2 + 4}" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">${escapeHtml(r.row)}</text>`;
-
         if (Array.isArray(r.seats)) {
           r.seats.forEach((seat, sIdx) => {
             const x = padding + labelWidth + sIdx * (seatSize + gap);
             let catEntry = categoryPaths.get(seat.category);
             if (!catEntry) {
-              catEntry = { color: getCategoryColor(seat.category), d: '' };
+              catEntry = { color: categoryColorMap.get(seat.category) || '#9ca3af', d: '' };
               categoryPaths.set(seat.category, catEntry);
             }
             catEntry.d += `M ${x} ${y} h ${seatSize} v ${seatSize} h -${seatSize} Z `;
@@ -183,26 +183,17 @@
       let pathsSvg = '';
       for (const [_, entry] of categoryPaths.entries()) {
         if (entry.d) {
-          pathsSvg += `<path d="${entry.d}" fill="${entry.color}" />`;
+          pathsSvg += `<path d="${entry.d.trim()}" fill="${entry.color}" />`;
         }
       }
 
-      const svgHtml = `<svg id="seatGridSvg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg" style="background:#ffffff; border-radius:8px; display:block;">${rowLabelsSvg}${pathsSvg}</svg>`;
-
-      let svgWrapper = gridContainer.querySelector('.svg-grid-wrapper');
-      if (!svgWrapper) {
-        svgWrapper = document.createElement('div');
-        svgWrapper.className = 'svg-grid-wrapper';
-        gridContainer.appendChild(svgWrapper);
-      }
-      svgWrapper.innerHTML = svgHtml;
+      gridContainer.innerHTML = `<svg id="seatGridSvg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg" style="background:#ffffff; border-radius:8px; display:block;">${pathsSvg}</svg>`;
     }
   }
 
   const exportObj = {
-    CATEGORY_COLORS,
-    getCategoryColor,
-    resetColorCache,
+    colorForCategory,
+    buildPreviewModel,
     renderLegend,
     renderSeatGrid,
   };
@@ -213,6 +204,8 @@
 
   if (typeof global !== 'undefined') {
     global.SeatGridPreview = exportObj;
+    global.colorForCategory = colorForCategory;
+    global.buildPreviewModel = buildPreviewModel;
     global.renderSeatGrid = renderSeatGrid;
     global.renderLegend = renderLegend;
   }

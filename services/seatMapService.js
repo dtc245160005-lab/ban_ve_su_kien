@@ -8,6 +8,7 @@ function parseSeatMap(buffer) {
   if (!result.valid) {
     const error = new AppError(400, 'Tệp sơ đồ không hợp lệ.');
     error.errors = result.errors;
+    error.truncated = Boolean(result.truncated);
     throw error;
   }
   return result.seats;

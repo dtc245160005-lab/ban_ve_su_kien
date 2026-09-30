@@ -162,6 +162,8 @@
     }
 
     const seen = new Map();
+    const seenCategories = new Set();
+    let hasTooManyCategoriesError = false;
     const validSeats = [];
 
     for (let i = 0; i < document.seats.length; i++) {
@@ -342,6 +344,20 @@
           });
         } else {
           categoryValid = true;
+          seenCategories.add(trimmedCategory);
+          if (seenCategories.size > 50 && !hasTooManyCategoriesError) {
+            hasTooManyCategoriesError = true;
+            addError({
+              code: 'TOO_MANY_CATEGORIES',
+              message: 'Số lượng hạng ghế vượt quá giới hạn tối đa 50 hạng.',
+              index: null,
+              field: 'category',
+              position: null,
+              line: null,
+              column: null,
+              related: null,
+            });
+          }
         }
       }
 

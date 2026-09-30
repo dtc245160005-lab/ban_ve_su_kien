@@ -111,7 +111,7 @@ describe('T-13 / S-06 Seat Map Validate API Tests', () => {
     assert.equal(result.status, 400);
     assert.equal(result.body.success, false);
     assert.ok(Array.isArray(result.body.errors));
-    assert.ok(result.body.errors.length >= 8);
+    assert.equal(result.body.errors.length, 10);
 
     const [{ count: seatsCount }] = await db('seats').where({ showtime_id: showtime.id }).count('* as count');
     const [{ count: catCount }] = await db('seat_categories').where({ showtime_id: showtime.id }).count('* as count');
@@ -158,5 +158,65 @@ describe('T-13 / S-06 Seat Map Validate API Tests', () => {
     // Giữ nguyên 10 ghế của lần nạp valid-small trước đó
     const [{ count: seatsCount }] = await db('seats').where({ showtime_id: showtime.id }).count('* as count');
     assert.equal(Number(seatsCount), 10);
+  });
+
+  test('Máy chủ giới hạn 5 MB: gửi tệp 5 MB + 1 byte tới API import thì nhận 413, DB không đổi', async () => {
+    const largeBuffer = Buffer.alloc(5 * 1024 * 1024 + 1, 32);
+    const form = new FormData();
+    form.set('file', new Blob([largeBuffer], { type: 'application/json' }), 'too-large.json');
+    const response = await fetch(`${baseUrl}/api/organizer/showtimes/${showtime.id}/seats/import`, {
+      method: 'POST',
+      headers: { cookie: ownerCookie },
+      body: form,
+    });
+    assert.equal(response.status, 413);
+    const body = await response.json();
+    assert.equal(body.success, false);
+    assert.match(body.message, /vượt quá 5 MB/);
+
+    const [{ count: seatsCount }] = await db('seats').where({ showtime_id: showtime.id }).count('* as count');
+    assert.equal(Number(seatsCount), 10);
+  });
+
+  test('Kiểm tra chạy trước transaction: bọc db.transaction bằng spy; gửi multi-error.json thì spy KHÔNG được gọi', async () => {
+    let transactionCalled = false;
+    const originalTransaction = db.transaction.bind(db);
+    db.transaction = async function (...args) {
+      transactionCalled = true;
+      return originalTransaction(...args);
+    };
+
+    try {
+      const fixturePath = path.join(__dirname, 'fixtures/seatmaps/multi-error.json');
+      const result = await uploadFile(showtime.id, fixturePath, ownerCookie);
+      assert.equal(result.status, 400);
+      assert.equal(transactionCalled, false, 'db.transaction không được phép gọi khi validation thất bại');
+    } finally {
+      db.transaction = originalTransaction;
+    }
+  });
+
+  test('Khi máy chủ trả 400 thì body có luôn cờ truncated lấy từ validator', async () => {
+    const fixturePath = path.join(__dirname, 'fixtures/seatmaps/multi-error.json');
+    const result = await uploadFile(showtime.id, fixturePath, ownerCookie);
+    assert.equal(result.status, 400);
+    assert.strictEqual(result.body.truncated, false);
+
+    const brokenSeats = Array.from({ length: 250 }, (_, i) => ({
+      row: '',
+      number: -i,
+      category: '',
+    }));
+    const form = new FormData();
+    form.set('file', new Blob([Buffer.from(JSON.stringify({ seats: brokenSeats }))], { type: 'application/json' }), 'truncated.json');
+    const response = await fetch(`${baseUrl}/api/organizer/showtimes/${showtime.id}/seats/import`, {
+      method: 'POST',
+      headers: { cookie: ownerCookie },
+      body: form,
+    });
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.strictEqual(body.truncated, true);
+    assert.equal(body.errors.length, 200);
   });
 });

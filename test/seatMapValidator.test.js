@@ -185,23 +185,57 @@ describe('T-13 / S-06 seatMapValidator Unit Tests', () => {
     assert.match(err.message, /Ghế #3 \(A-5\) trùng với ghế #1/);
   });
 
+  test('TOO_MANY_CATEGORIES: quá 50 hạng ghế khác nhau', () => {
+    const seats51 = Array.from({ length: 51 }, (_, i) => ({
+      row: 'A',
+      number: i + 1,
+      category: `Hạng_${i + 1}`,
+    }));
+    const result51 = validateSeatMapText(JSON.stringify({ seats: seats51 }));
+    assert.strictEqual(result51.valid, false);
+    const catErr = result51.errors.find((e) => e.code === 'TOO_MANY_CATEGORIES');
+    assert.ok(catErr, 'Phải có lỗi TOO_MANY_CATEGORIES');
+    assert.strictEqual(catErr.field, 'category');
+    assert.match(catErr.message, /tối đa 50 hạng/);
+
+    const seats50 = Array.from({ length: 50 }, (_, i) => ({
+      row: 'A',
+      number: i + 1,
+      category: `Hạng_${i + 1}`,
+    }));
+    const result50 = validateSeatMapText(JSON.stringify({ seats: seats50 }));
+    assert.strictEqual(result50.valid, true);
+    assert.deepStrictEqual(result50.errors, []);
+  });
+
   test('Tệp nhiều lỗi (multi-error.json) trả đủ và đúng danh sách lỗi', () => {
     const fixturePath = path.join(__dirname, 'fixtures/seatmaps/multi-error.json');
     const content = fs.readFileSync(fixturePath, 'utf8');
     const result = validateSeatMapText(content);
 
     assert.strictEqual(result.valid, false);
-    assert.ok(result.errors.length >= 8, `Cần ít nhất 8 lỗi, nhận được ${result.errors.length}`);
+    assert.strictEqual(result.errors.length, 10, 'multi-error.json phải trả về chính xác 10 lỗi');
 
-    const errorCodes = new Set(result.errors.map((e) => e.code));
-    assert.ok(errorCodes.has('SEAT_NOT_OBJECT'));
-    assert.ok(errorCodes.has('FIELD_MISSING'));
-    assert.ok(errorCodes.has('FIELD_TYPE'));
-    assert.ok(errorCodes.has('ROW_BLANK'));
-    assert.ok(errorCodes.has('CATEGORY_TOO_LONG'));
-    assert.ok(errorCodes.has('NUMBER_NOT_POSITIVE'));
-    assert.ok(errorCodes.has('ROW_TOO_LONG'));
-    assert.ok(errorCodes.has('DUPLICATE_SEAT'));
+    const expected = [
+      { code: 'SEAT_NOT_OBJECT', index: 0, field: null, related: null },
+      { code: 'FIELD_MISSING', index: 1, field: 'number', related: null },
+      { code: 'FIELD_TYPE', index: 2, field: 'row', related: null },
+      { code: 'FIELD_TYPE', index: 2, field: 'number', related: null },
+      { code: 'FIELD_TYPE', index: 2, field: 'category', related: null },
+      { code: 'ROW_BLANK', index: 3, field: 'row', related: null },
+      { code: 'CATEGORY_TOO_LONG', index: 4, field: 'category', related: null },
+      { code: 'NUMBER_NOT_POSITIVE', index: 5, field: 'number', related: null },
+      { code: 'ROW_TOO_LONG', index: 6, field: 'row', related: null },
+      { code: 'DUPLICATE_SEAT', index: 8, field: null, related: 7 },
+    ];
+
+    expected.forEach((exp, idx) => {
+      const actual = result.errors[idx];
+      assert.strictEqual(actual.code, exp.code, `Lỗi #${idx + 1} mã lỗi phải là ${exp.code}`);
+      assert.strictEqual(actual.index, exp.index, `Lỗi #${idx + 1} index phải là ${exp.index}`);
+      assert.strictEqual(actual.field, exp.field, `Lỗi #${idx + 1} field phải là ${exp.field}`);
+      assert.strictEqual(actual.related, exp.related, `Lỗi #${idx + 1} related phải là ${exp.related}`);
+    });
   });
 
   test('Tệp đúng (valid-small.json) trả errors=[] và summary đầy đủ', () => {
