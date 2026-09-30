@@ -339,3 +339,12 @@ body {
   }
 }
 
+.workspace-card { width: min(100%, 760px); }
+.role-picker { display: flex; gap: 16px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.role-picker legend { font-weight: 700; font-size: 14px; }
+.staff-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.staff-row small, .stat-card span { display: block; color: var(--muted); margin-top: 4px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat-card { padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.stat-card strong { font-size: 24px; }
+

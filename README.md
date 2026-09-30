@@ -288,6 +288,15 @@ npm run backup
 - **Mô hình dữ liệu & API nạp sơ đồ:**
   - Migration tạo bảng `seat_categories` và `seats` theo từng suất diễn (`showtimes`). Một suất diễn không thể có hai ghế cùng hàng và số (`UNIQUE(showtime_id, row, number)`); hạng ghế phải thuộc chính suất diễn đó. Có index theo `showtime_id`, kiểm tra số ghế dương (`number > 0`) và migration rollback theo đúng thứ tự phụ thuộc ngược (`seats` trước, `seat_categories` sau).
   - API `POST /api/organizer/showtimes/:id/seats/import` dành cho `admin` hoặc chủ sự kiện có vai trò `organizer`. Gửi `multipart/form-data` với đúng một tệp JSON ở trường `file` (tối đa 5 MB). Phản hồi thành công: `200` và `{ "success": true, "data": { "showtime_id": 1, "seats_count": 2000, "categories_count": 2 } }`.
+
+### Không gian làm việc theo vai trò
+
+- `buyer`: `/buyer.html`, xem các sự kiện đang mở bán.
+- `organizer`: `/organizer-events.html`, quản lý sự kiện và suất diễn thuộc quyền sở hữu.
+- `checker`: `/checker.html`, khu vực soát vé.
+- `accountant`: `/accountant.html`, khu vực đối soát.
+- `admin`: `/admin-staff.html`, tạo, khóa/mở khóa và phân vai trò cho nhân viên.
+- Người mua chỉ được tạo qua luồng đăng ký công khai. API quản trị nhân viên chỉ chấp nhận `organizer`, `checker`, `accountant` và được bảo vệ bằng vai trò `admin` ở backend.
   - Nạp lại sẽ thay thế toàn bộ ghế và hạng cũ trong **một giao dịch** duy nhất; nếu có bất kỳ lỗi nào, dữ liệu được rollback toàn bộ về trạng thái trước đó. Yêu cầu bị từ chối `409` nếu suất diễn đã có vé bán ra hoặc giữ chỗ còn hiệu lực.
 
 - **Định dạng tệp:** `{ "seats": [ { "row", "number", "category" } ] }`

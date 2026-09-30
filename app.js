@@ -6,6 +6,7 @@ const { getRedis: defaultGetRedis, redisClient } = require('./lib/redis');
 const { createRedisAuthStore } = require('./services/redisAuthStore');
 const defaultAuthRouter = require('./routes/auth');
 const defaultEventsModule = require('./routes/events');
+const { createWorkspaceRouter } = require('./routes/workspaces');
 const { secure, apiFallbackForbidden } = require('./middleware/routeRegistry');
 
 function createApp(options = {}) {
@@ -99,6 +100,13 @@ function createApp(options = {}) {
     });
   organizerEventsRouter._mountPrefix = '/api/organizer';
   app.use('/api/organizer', organizerEventsRouter);
+
+  const workspaceRouter = options.workspaceRouter || createWorkspaceRouter({
+    db,
+    staffService: options.staffService,
+  });
+  workspaceRouter._mountPrefix = '/api/workspaces';
+  app.use('/api/workspaces', workspaceRouter);
 
   // Mặc định đóng: mọi request vào /api/* không khớp route nào đã khai báo thì trả 403
   app.use('/api', apiFallbackForbidden);

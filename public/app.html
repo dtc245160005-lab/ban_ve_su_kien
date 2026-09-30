@@ -23,17 +23,21 @@
 
           <!-- Đối soát: chỉ hiện cho accountant và admin -->
           <div id="reconciliationSection" class="menu-item" style="display: none;">
-            <a href="#reconciliation" class="menu-link" id="reconciliationLink">Đối soát</a>
+            <a href="/accountant.html" class="menu-link" id="reconciliationLink">Đối soát</a>
           </div>
 
           <!-- Soát vé: checker và admin -->
           <div id="ticketCheckSection" class="menu-item" style="display: none;">
-            <a href="#checkin" class="menu-link" id="ticketCheckLink">Soát vé</a>
+            <a href="/checker.html" class="menu-link" id="ticketCheckLink">Soát vé</a>
           </div>
 
           <!-- Vé của tôi: buyer -->
           <div id="buyerSection" class="menu-item" style="display: none;">
-            <a href="#tickets" class="menu-link" id="buyerLink">Vé của tôi</a>
+            <a href="/buyer.html" class="menu-link" id="buyerLink">Khu vực người mua</a>
+          </div>
+
+          <div id="staffManagementSection" class="menu-item" style="display: none;">
+            <a href="/admin-staff.html" class="menu-link" id="staffManagementLink">Quản lý nhân viên</a>
           </div>
         </nav>
 
@@ -50,6 +54,7 @@
       const reconciliationSection = document.getElementById('reconciliationSection');
       const ticketCheckSection = document.getElementById('ticketCheckSection');
       const buyerSection = document.getElementById('buyerSection');
+      const staffManagementSection = document.getElementById('staffManagementSection');
 
       async function loadSession() {
         const response = await apiFetch('/api/auth/session');
@@ -80,6 +85,9 @@
 
         if (buyerSection) {
           buyerSection.style.display = activeMenus.includes('Vé của tôi') ? 'block' : 'none';
+        }
+        if (staffManagementSection) {
+          staffManagementSection.style.display = activeMenus.includes('Quản lý nhân viên') ? 'block' : 'none';
         }
       }
 
