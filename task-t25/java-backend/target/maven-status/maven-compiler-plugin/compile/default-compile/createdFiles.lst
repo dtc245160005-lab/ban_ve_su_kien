@@ -1,0 +1,6 @@
+com\taskt25\dao\DeleteSeatReservationResult.class
+com\taskt25\web\SeatReservationServlet.class
+com\taskt25\api\ApiException.class
+com\taskt25\api\ErrorResponse.class
+com\taskt25\dao\SeatReservationDao.class
+com\taskt25\web\SeatReservationServlet$1.class
