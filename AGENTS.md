@@ -28,7 +28,7 @@ Hệ thống được tổ chức theo cấu trúc đơn giản, tập trung t�
 
 - **Tên bảng:** Phải là danh từ số nhiều, định dạng `snake_case` (ví dụ: `events`, `users`, `roles`, `user_roles`, `tickets`).
 - **Hàm `down`:** Bắt buộc phải có và chạy được hoàn chỉnh. Xóa bảng theo đúng thứ tự phụ thuộc ngược (bảng con trước, bảng cha sau) để đảm bảo rollback sạch sẽ.
-- **Tính bất biến:** Tuyệt đối **KHÔNG sửa** các migration đã merge vào nhánh chính (`develop-v2`, `main`). Mọi thay đổi cấu trúc schema phải tạo migration mới.
+- **Tính bất biến:** Tuyệt đối **KHÔNG sửa** các migration đã merge vào nhánh chính (`develop-v2`, `main`). Migration đã merge vào develop-v2 thì KHÔNG được sửa. Đổi schema phải tạo migration mới.
 
 ---
 

@@ -17,7 +17,8 @@
     "migrate:latest": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "seed:run": "knex seed:run",
-    "backup": "node scripts/backup.js"
+    "backup": "node scripts/backup.js",
+    "e2e:sprint1": "node scripts/e2e-sprint1.js"
   },
   "keywords": [],
   "engines": { "node": "^20.19.0 || ^22.13.0 || >=24" },

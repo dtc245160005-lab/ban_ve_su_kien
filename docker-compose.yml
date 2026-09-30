@@ -3,7 +3,7 @@ services:
   api:
     build: .
     env_file: .env
-    command: ["sh", "-c", "npm run setup && npm start"]
+    command: ["sh", "-c", "npm run migrate:latest && if [ -n \"$DEMO_ADMIN_PASSWORD\" ] || [ -n \"$DEMO_ORGANIZER_PASSWORD\" ]; then npm run seed:run; fi && npm start"]
     ports:
       - "${PORT:-8090}:8090"
     environment:

@@ -219,7 +219,8 @@ function createAuthRouter(customDependencies = {}) {
         message: GENERIC_REGISTER_MESSAGE,
       });
     } catch (error) {
-      console.error('Register error:', error.message);
+      const technicalError = error.code || error.message || 'UnknownError';
+      console.error('Register technical error:', technicalError);
       return res.status(500).json({
         success: false,
         message: 'Hệ thống đang bận. Vui lòng thử lại sau.',

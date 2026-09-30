@@ -36,8 +36,11 @@ Nếu PostgreSQL/Redis đã được cài trực tiếp và đang chạy, bỏ q
 phải được tạo trước; `setup` không tạo hay xóa database.
 
 Chạy toàn bộ stack bằng Docker: tạo `.env`, cấu hình cổng không trùng với dịch vụ
-đang chạy rồi dùng `docker compose up --build`. Container API tự chạy `setup`
-trước khi mở server. Đây là cấu hình development; email dùng chế độ dev.
+đang chạy rồi dùng `docker compose up --build`. Lệnh khởi động trong Dockerfile và `docker-compose.yml`
+tự động chạy `npm run migrate:latest` (tạo bảng, vá cột và chèn 5 vai trò hệ thống nền tảng),
+sau đó chỉ chạy `npm run seed:run` khi biến `DEMO_*` được cấu hình rõ ràng, rồi mở server bằng `npm start`.
+Trên Render, chỉ cần deploy/chạy lại `migrate:latest` để tự động nạp vai trò hệ thống và vá cột `purpose` cho database hiện tại.
+Đây là cấu hình development; email dùng chế độ dev.
 
 `verify` không khởi tạo database ứng dụng: nó tạo database tạm, migrate/rollback,
 seed, lint/test rồi dọn database tạm. Không dùng `verify` thay cho `setup`.
@@ -182,9 +185,10 @@ Seed dùng để khởi tạo dữ liệu mẫu cho hệ thống và có tính *
 npm run seed:run
 ```
 
-**Đặc điểm của Seed T-04:**
-- Khởi tạo đúng 5 vai trò hệ thống bắt buộc: `buyer`, `organizer`, `checker`, `accountant`, `admin`.
-- Tạo 2 tài khoản demo: Admin (gán role `admin`) và Organizer (gán role `organizer`).
+**Đặc điểm của Seed:**
+- 5 vai trò hệ thống (`buyer`, `organizer`, `checker`, `accountant`, `admin`) được khởi tạo tự động qua migration (dữ liệu nền hệ thống).
+- Seed chỉ phụ trách tạo 2 tài khoản demo: Admin (gán role `admin`) và Organizer (gán role `organizer`).
+- Nếu thiếu các biến môi trường `DEMO_*`, seed sẽ in cảnh báo `[SEED WARN]` và bỏ qua tạo tài khoản demo mà không ném lỗi (ở production chỉ tạo tài khoản demo khi `DEMO_*` được đặt rõ ràng).
 - Mật khẩu được hash an toàn bằng thuật toán **Argon2id** (`argon2.argon2id`), không bao giờ lưu mật khẩu thô trong database.
 - Không xóa hay làm ảnh hưởng đến các bản ghi người dùng / vai trò khác ngoài dữ liệu demo (hỗ trợ CSDL đã có sẵn dữ liệu trước đó).
 
@@ -192,18 +196,28 @@ npm run seed:run
 
 ## 5. Kiểm Thử Hệ Thống (Testing)
 
-Dự án sử dụng test runner chuẩn của Node.js (`node --test`), bao gồm kiểm tra cấu trúc CSDL và các tính năng nghiệp vụ:
+### Kiểm thử Unit & Integration:
 ```bash
 npm test
 ```
 
+### Kiểm thử End-to-End Sprint 1 (E2E):
+```bash
+npm run e2e:sprint1
+```
+Chạy kiểm thử toàn bộ luồng nghiệp vụ Sprint 1 (Health, Đăng ký, Đăng nhập, Kích hoạt, Quản lý sự kiện, Suất diễn, Phân quyền và Khoá tài khoản) qua giao thức HTTP thuần:
+- Có thể trỏ tới bất kỳ máy chủ nào qua biến `BASE_URL` (mặc định `http://localhost:8090`).
+- Khi chạy local, đặt `DEV_MAIL_FILE` để tự động đọc liên kết kích hoạt từ log email dev.
+- Đặt `E2E_LOCKOUT=1` để chạy kiểm tra khoá đăng nhập sau 5 lần sai mật khẩu (tránh khoá tài khoản trên staging).
+
 Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
+- `test/fresh-clone-repair.test.js`: Kiểm thử kiểm tra schema, seed không có DEMO_* và vá schema lệch cho DB cũ.
 - `test/events.test.js`: Kiểm thử API sự kiện, phân quyền truy cập, kiểm tra dữ liệu, lọc sự kiện nháp/công khai và migration gán owner_id cho admin.
 - `test/showtimes.test.js`: Kiểm thử API suất diễn, xác thực múi giờ, kiểm tra thời điểm tương lai/quá khứ, cảnh báo trùng giờ và lưu trữ chuẩn UTC.
 - `test/eventForm.test.js`: Kiểm thử các hàm thuần validateEventForm, validateShowtimeForm, toIsoVietnam và formatVietnamDateTime.
 - `test/register.test.js`: Kiểm thử luồng đăng ký người mua, kiểm tra dữ liệu, chống timing attack, concurrency race condition và bảo mật log.
 - `test/activation.test.js`: Kiểm thử kích hoạt tài khoản atomic, token hết hạn (410), đã dùng (409), rate limit gửi lại qua Redis, và đăng nhập với tài khoản chưa kích hoạt (403 ACCOUNT_NOT_ACTIVE).
-- `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles seed và xác thực mật khẩu Argon2id của 2 tài khoản demo.
+- `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles và xác thực mật khẩu Argon2id của 2 tài khoản demo.
 - Các bài kiểm thử khác: `test/authService.test.js`, `test/rbac.test.js`, `test/startup.test.js`, `test/health.test.js`, `test/logger.test.js`, `test/api-client.test.js`, `test/menu.test.js`.
 
 ---
