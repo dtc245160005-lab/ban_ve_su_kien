@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Chọn Ghế (T-24)</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .seat { display: inline-block; width: 40px; height: 40px; margin: 5px; background: #ddd; text-align: center; line-height: 40px; cursor: pointer; }
+        .seat.selected { background: #4CAF50; color: white; }
+        .seat.held { background: #FFC107; }
+        #countdown { font-size: 24px; font-weight: bold; margin-top: 20px; color: #D32F2F; }
+    </style>
+</head>
+<body>
+
+    <h1>Chọn Ghế</h1>
+    <div>
+        <div class="seat" data-id="A1">A1</div>
+        <div class="seat" data-id="A2">A2</div>
+        <div class="seat" data-id="A3">A3</div>
+    </div>
+    
+    <button id="holdBtn" style="margin-top: 10px; padding: 10px 20px;">Giữ Chỗ</button>
+
+    <div id="countdown"></div>
+
+    <script>
+        const API_URL = '/api/seat-holds';
+        const USER_ID = 1; // Giả lập user_id = 1 đang đăng nhập
+        
+        let selectedSeats = [];
+        let serverTimeOffset = 0; // Độ lệch giờ: serverTime - localTime
+        let holdExpiresAt = null;
+        let countdownInterval = null;
+
+        // Tính độ lệch giờ khi tải trang (có thể gọi API lấy giờ server)
+        // Ở đây giả định API trả về Date ở header, nhưng ta làm đơn giản
+        // Hoặc tạm gán offset = 0 nếu server & client chung máy
+        // Nếu muốn chuẩn: GET /api/time
+        
+        async function fetchServerTime() {
+            try {
+                const res = await fetch('/api/time');
+                const data = await res.json();
+                const localTime = Date.now();
+                const serverTime = new Date(data.server_time).getTime();
+                serverTimeOffset = serverTime - localTime;
+            } catch (e) {
+                console.error('Không lấy được giờ server', e);
+            }
+        }
+        
+        fetchServerTime();
+
+        document.querySelectorAll('.seat').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = el.getAttribute('data-id');
+                if (selectedSeats.includes(id)) {
+                    selectedSeats = selectedSeats.filter(s => s !== id);
+                    el.classList.remove('selected');
+                } else {
+                    selectedSeats.push(id);
+                    el.classList.add('selected');
+                }
+            });
+        });
+
+        document.getElementById('holdBtn').addEventListener('click', async () => {
+            if (selectedSeats.length === 0) return alert('Vui lòng chọn ghế');
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ seat_ids: selectedSeats, user_id: USER_ID })
+                });
+
+                const data = await res.json();
+                
+                if (res.status === 409) {
+                    alert(data.message); // Ghế vừa có người chọn
+                    // Làm mới sơ đồ ghế (mock)
+                    selectedSeats.forEach(id => {
+                        const el = document.querySelector(`.seat[data-id="${id}"]`);
+                        el.classList.remove('selected');
+                        el.classList.add('held');
+                    });
+                    selectedSeats = [];
+                    return;
+                }
+
+                if (data.success) {
+                    holdExpiresAt = new Date(data.data.expires_at).getTime();
+                    startCountdown();
+                } else {
+                    alert('Lỗi: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                const currentLocalTime = Date.now();
+                // Tính giờ server hiện tại bằng local time + offset
+                const currentServerTime = currentLocalTime + serverTimeOffset;
+                
+                const timeLeft = holdExpiresAt - currentServerTime;
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('countdown').innerText = 'Hết thời gian giữ chỗ!';
+                    // Làm mới sơ đồ ghế
+                    document.querySelectorAll('.seat').forEach(el => el.classList.remove('selected', 'held'));
+                    selectedSeats = [];
+                } else {
+                    const minutes = Math.floor(timeLeft / 60000);
+                    const seconds = Math.floor((timeLeft % 60000) / 1000);
+                    document.getElementById('countdown').innerText = `Thời gian giữ chỗ còn lại: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "ban-ve-su-kien",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Chưa có bài test nào\" && exit 0",
+    "migrate:latest": "knex migrate:latest",
+    "migrate:rollback": "knex migrate:rollback",
+    "seed:run": "knex seed:run",
+    "test:t04": "node test_t04.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "dotenv": "^18.0.3",
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "pg": "^8.23.0"
+  }
+}
