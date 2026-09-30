@@ -6,6 +6,9 @@ const { getRedis: defaultGetRedis, redisClient } = require('./lib/redis');
 const { createRedisAuthStore } = require('./services/redisAuthStore');
 const defaultAuthRouter = require('./routes/auth');
 const defaultEventsModule = require('./routes/events');
+const defaultShowtimeSeatsModule = require('./routes/showtimeSeats');
+const { createSeatStatusRepository } = require('./services/seatStatusRepository');
+const { createSeatStatusService } = require('./services/seatStatusService');
 const { secure, apiFallbackForbidden } = require('./middleware/routeRegistry');
 
 function createApp(options = {}) {
@@ -89,6 +92,16 @@ function createApp(options = {}) {
     });
   publicEventsRouter._mountPrefix = '/api/events';
   app.use('/api/events', publicEventsRouter);
+
+  // Sơ đồ ghế dành cho người dùng đã đăng nhập (T-19/T-20)
+  const showtimeSeatsRouter = options.showtimeSeatsRouter ||
+    defaultShowtimeSeatsModule.createShowtimeSeatsRouter({
+      seatStatusService: options.seatStatusService || createSeatStatusService({
+        repository: options.seatStatusRepository || createSeatStatusRepository(db),
+      }),
+    });
+  showtimeSeatsRouter._mountPrefix = '/api/showtimes';
+  app.use('/api/showtimes', showtimeSeatsRouter);
 
   // Routes quản lý sự kiện và suất diễn dành cho ban tổ chức và admin
   const organizerEventsRouter =

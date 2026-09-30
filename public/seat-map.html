@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chọn ghế</title>
+  <script>performance.mark('seat-map-load-start');</script>
+  <link rel="stylesheet" href="/seat-map.css">
+</head>
+<body>
+  <main class="seat-map-page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Sơ đồ chỗ ngồi</p>
+        <h1>Chọn ghế của bạn</h1>
+        <p id="showtimeText" class="subtitle">Đang tải thông tin suất diễn…</p>
+      </div>
+      <a class="back-link" href="/app.html">Quay lại sự kiện</a>
+    </header>
+
+    <section class="seat-map-card" aria-labelledby="mapTitle">
+      <div class="map-toolbar">
+        <div>
+          <h2 id="mapTitle">Sơ đồ ghế</h2>
+          <p id="sourceText" class="toolbar-note">Đang tải dữ liệu…</p>
+        </div>
+        <div class="zoom-controls" aria-label="Điều khiển sơ đồ">
+          <button id="zoomOut" type="button" aria-label="Thu nhỏ">−</button>
+          <button id="resetView" type="button">Vừa màn hình</button>
+          <button id="zoomIn" type="button" aria-label="Phóng to">+</button>
+        </div>
+      </div>
+
+      <div class="legend" aria-label="Chú giải trạng thái ghế">
+        <span><i class="legend-seat available" aria-hidden="true">○</i> Trống</span>
+        <span><i class="legend-seat held" aria-hidden="true">╱</i> Đang có người giữ</span>
+        <span><i class="legend-seat sold" aria-hidden="true">×</i> Đã bán</span>
+      </div>
+
+      <div id="message" class="message" role="status" hidden></div>
+      <div id="canvasViewport" class="canvas-viewport">
+        <canvas
+          id="seatCanvas"
+          tabindex="0"
+          role="application"
+          aria-label="Sơ đồ ghế. Kéo để di chuyển, cuộn hoặc chụm để phóng to."
+        >Trình duyệt của bạn không hỗ trợ sơ đồ ghế Canvas.</canvas>
+      </div>
+
+      <div class="map-footer">
+        <p id="seatSummary">Chưa có dữ liệu ghế.</p>
+        <p id="selectedSeat" class="selected-seat">Chưa chọn ghế.</p>
+        <p id="renderTiming" class="render-timing"></p>
+      </div>
+      <p id="liveRegion" class="sr-only" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="/api.js"></script>
+  <script src="/seat-map-core.js"></script>
+  <script src="/seat-map.js"></script>
+</body>
+</html>

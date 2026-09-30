@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đo thời gian sơ đồ ghế</title>
+  <link rel="stylesheet" href="/seat-map.css">
+</head>
+<body>
+  <main class="seat-map-page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">T-21</p>
+        <h1>Đo thời gian hiển thị 2.000 ghế</h1>
+        <p class="subtitle">Mỗi lượt tải lại trang mẫu và chờ Canvas báo đã vẽ xong.</p>
+      </div>
+    </header>
+    <section class="benchmark-grid">
+      <div class="benchmark-panel">
+        <label for="runCount">Số lượt đo</label>
+        <input id="runCount" type="number" min="3" max="50" value="10">
+        <button id="startBenchmark" type="button">Bắt đầu đo</button>
+        <div id="benchmarkResults" class="benchmark-results" aria-live="polite">Chưa có kết quả.</div>
+      </div>
+      <iframe id="benchmarkFrame" title="Trang sơ đồ ghế đang được đo"></iframe>
+    </section>
+  </main>
+  <script src="/seat-map-benchmark.js"></script>
+</body>
+</html>
