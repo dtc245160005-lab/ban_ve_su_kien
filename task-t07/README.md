@@ -31,6 +31,18 @@ Sau đó mở browser tại:
 http://localhost:2006
 ```
 
+Trong môi trường `development`, email xác nhận được in đầy đủ trong terminal và không gửi qua SMTP. Đặt `NODE_ENV=development` trong `.env` để bật chế độ này.
+
+Các môi trường khác gửi email qua SMTP. Cấu hình `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` và `APP_BASE_URL` trong `.env`. Không bật `development` ở staging/production.
+
+Liên kết kích hoạt có hiệu lực 24 giờ và chỉ dùng được một lần:
+
+```text
+GET /api/auth/activate?token=<activation-token>
+```
+
+Token được lưu dưới dạng SHA-256 trong cơ sở dữ liệu. Kích hoạt thành công đặt `is_active` và `email_verified` thành `true`; đăng nhập bị từ chối trước khi tài khoản được kích hoạt.
+
 ## API dùng thử
 
 ### POST /api/auth/register

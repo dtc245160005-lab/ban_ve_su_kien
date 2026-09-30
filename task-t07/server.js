@@ -1,9 +1,13 @@
+require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const { Client } = require("pg");
+const { sendEmail } = require("./services/emailService");
+const { createActivationEmail } = require("./templates/activationEmail");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 2006;
@@ -45,6 +49,10 @@ function normalizeEmail(email) {
     .toLowerCase();
 }
 
+function hashActivationToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email ?? ""));
 }
@@ -80,7 +88,6 @@ function buildUserResponse(user) {
     is_verified: accountVerified,
     isActive: accountActive,
     emailVerified: accountVerified,
-    password_hash: user.password_hash ?? user.passwordHash ?? null,
   };
 }
 
@@ -106,14 +113,29 @@ async function initializePostgres() {
         is_active BOOLEAN NOT NULL DEFAULT false,
         email_verified BOOLEAN NOT NULL DEFAULT false,
         verification_token VARCHAR(255),
+        activation_token_hash CHAR(64),
+        activation_expires_at TIMESTAMPTZ,
+        activation_used_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
 
+    await pgClient.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS activation_token_hash CHAR(64),
+        ADD COLUMN IF NOT EXISTS activation_expires_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS activation_used_at TIMESTAMPTZ;
+    `);
+
     await pgClient.query(
       `CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);`,
     );
+    await pgClient.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_activation_token_hash
+      ON users (activation_token_hash)
+      WHERE activation_token_hash IS NOT NULL;
+    `);
 
     return pgClient;
   } catch (error) {
@@ -143,7 +165,8 @@ async function createUserRecord({
   fullName,
   email,
   passwordHash,
-  verificationToken,
+  activationTokenHash,
+  activationExpiresAt,
 }) {
   const normalizedEmail = normalizeEmail(email);
   const safeFullName = String(fullName).trim();
@@ -157,14 +180,21 @@ async function createUserRecord({
           password_hash,
           is_active,
           email_verified,
-          verification_token,
+          activation_token_hash,
+          activation_expires_at,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, false, false, $4, NOW(), NOW())
+        VALUES ($1, $2, $3, false, false, $4, $5, NOW(), NOW())
         RETURNING *;
       `,
-      [safeFullName, normalizedEmail, passwordHash, verificationToken],
+      [
+        safeFullName,
+        normalizedEmail,
+        passwordHash,
+        activationTokenHash,
+        activationExpiresAt,
+      ],
     );
 
     return result.rows[0];
@@ -182,7 +212,9 @@ async function createUserRecord({
     email_verified: false,
     isActive: false,
     emailVerified: false,
-    verificationToken,
+    activationTokenHash,
+    activationExpiresAt,
+    activationUsedAt: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -272,12 +304,89 @@ async function validateLoginInput(payload) {
   };
 }
 
-async function sendVerificationEmail(email, token) {
-  const verificationUrl = `http://localhost:${PORT}/api/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+function createActivationUrl(token) {
+  const baseUrl = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+  const activationUrl = new URL("/api/auth/activate", baseUrl);
+  activationUrl.searchParams.set("token", token);
+  return activationUrl.toString();
+}
 
-  console.log(`[MOCK_EMAIL] Verification URL for ${email}: ${verificationUrl}`);
+async function activateAccount(token) {
+  const tokenHash = hashActivationToken(token);
 
-  return verificationUrl;
+  if (pgClient) {
+    await pgClient.query("BEGIN");
+    try {
+      const result = await pgClient.query(
+        `SELECT id, activation_expires_at, activation_used_at
+         FROM users
+         WHERE activation_token_hash = $1
+         FOR UPDATE`,
+        [tokenHash],
+      );
+      const user = result.rows[0];
+
+      if (!user) {
+        await pgClient.query("ROLLBACK");
+        return { statusCode: 404, message: "Mã kích hoạt không tồn tại." };
+      }
+      if (user.activation_used_at) {
+        await pgClient.query("ROLLBACK");
+        return { statusCode: 409, message: "Mã kích hoạt đã được sử dụng." };
+      }
+      if (
+        !user.activation_expires_at ||
+        new Date(user.activation_expires_at) <= new Date()
+      ) {
+        await pgClient.query("ROLLBACK");
+        return { statusCode: 410, message: "Mã kích hoạt đã hết hạn." };
+      }
+
+      await pgClient.query(
+        `UPDATE users
+         SET is_active = true,
+             email_verified = true,
+             activation_used_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [user.id],
+      );
+      await pgClient.query("COMMIT");
+      return {
+        statusCode: 200,
+        message: "Tài khoản đã được kích hoạt thành công.",
+      };
+    } catch (error) {
+      await pgClient.query("ROLLBACK").catch(() => {});
+      throw error;
+    }
+  }
+
+  const user = users.find(
+    (candidate) => candidate.activationTokenHash === tokenHash,
+  );
+  if (!user) {
+    return { statusCode: 404, message: "Mã kích hoạt không tồn tại." };
+  }
+  if (user.activationUsedAt) {
+    return { statusCode: 409, message: "Mã kích hoạt đã được sử dụng." };
+  }
+  if (
+    !user.activationExpiresAt ||
+    new Date(user.activationExpiresAt) <= new Date()
+  ) {
+    return { statusCode: 410, message: "Mã kích hoạt đã hết hạn." };
+  }
+
+  user.is_active = true;
+  user.email_verified = true;
+  user.isActive = true;
+  user.emailVerified = true;
+  user.activationUsedAt = new Date().toISOString();
+  return {
+    statusCode: 200,
+    message: "Tài khoản đã được kích hoạt thành công.",
+  };
 }
 
 app.use(express.json({ limit: "1mb" }));
@@ -321,22 +430,31 @@ app.post(
 
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const activationToken = crypto.randomBytes(32).toString("hex");
+      const activationTokenHash = hashActivationToken(activationToken);
+      const activationExpiresAt = new Date(
+        Date.now() + 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const newUser = await createUserRecord({
         fullName,
         email,
         passwordHash,
-        verificationToken,
+        activationTokenHash,
+        activationExpiresAt,
       });
 
-      await sendVerificationEmail(email, verificationToken);
+      const activationUrl = createActivationUrl(activationToken);
+      await sendEmail({
+        to: email,
+        ...createActivationEmail({ fullName, activationUrl }),
+      });
 
       return createSuccessResponse(res, 201, "Đăng ký tài khoản thành công.", {
         user: buildUserResponse(newUser),
       });
     } catch (error) {
-      console.error("Register error:", error);
+      console.error("Registration request failed.");
 
       return createErrorResponse(
         res,
@@ -387,6 +505,14 @@ app.post(["/api/login", "/api/auth/login"], loginLimiter, async (req, res) => {
       );
     }
 
+    if (!(user.is_active ?? user.isActive ?? false)) {
+      return createErrorResponse(
+        res,
+        403,
+        "Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email xác nhận.",
+      );
+    }
+
     return createSuccessResponse(res, 200, "Đăng nhập thành công.", {
       user: buildUserResponse(user),
     });
@@ -397,48 +523,22 @@ app.post(["/api/login", "/api/auth/login"], loginLimiter, async (req, res) => {
   }
 });
 
-app.get("/api/auth/verify-email", async (req, res) => {
-  const { token, email } = req.query || {};
-
-  if (!token || !email) {
-    return createErrorResponse(res, 400, "Token xác minh không hợp lệ.");
+app.get(["/api/auth/activate", "/api/auth/verify-email"], async (req, res) => {
+  const { token } = req.query || {};
+  if (typeof token !== "string" || !token) {
+    return createErrorResponse(res, 400, "Mã kích hoạt không hợp lệ.");
   }
 
-  const user = await findUserByEmail(email);
-
-  if (!user) {
-    return createErrorResponse(res, 404, "Không tìm thấy người dùng.");
+  try {
+    const result = await activateAccount(token);
+    return res.status(result.statusCode).json({
+      success: result.statusCode === 200,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("Account activation request failed.");
+    return createErrorResponse(res, 500, "Lỗi hệ thống. Vui lòng thử lại sau.");
   }
-
-  const storedToken = user.verification_token ?? user.verificationToken;
-
-  if (!storedToken || storedToken !== token) {
-    return createErrorResponse(
-      res,
-      400,
-      "Token xác minh không hợp lệ hoặc đã hết hạn.",
-    );
-  }
-
-  if (pgClient) {
-    await pgClient.query(
-      `
-        UPDATE users
-        SET
-          email_verified = true,
-          verification_token = NULL,
-          updated_at = NOW()
-        WHERE id = $1
-      `,
-      [user.id],
-    );
-  } else {
-    user.email_verified = true;
-    user.emailVerified = true;
-    user.verificationToken = null;
-  }
-
-  return createSuccessResponse(res, 200, "Email đã được xác minh thành công.");
 });
 
 app.get("/", (req, res) => {
