@@ -14,6 +14,13 @@ function isDevOrTestEnvironment() {
   return env === 'development' || env === 'test' || !env;
 }
 
+function parseMailFrom(value) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(?:"?([^"<]+)"?\s*)?<([^<>\s]+@[^<>\s]+)>$/);
+  if (match) return { name: (match[1] || 'Ban Ve Su Kien').trim(), email: match[2] };
+  return { name: 'Ban Ve Su Kien', email: raw };
+}
+
 function assertConfiguration() {
   const transport = (process.env.MAIL_TRANSPORT || 'dev').toLowerCase();
 
@@ -35,11 +42,21 @@ function assertConfiguration() {
     return;
   }
 
-  throw new Error(`MAIL_TRANSPORT không hợp lệ: ${transport}. Chỉ hỗ trợ 'dev' hoặc 'smtp'.`);
+  if (transport === 'brevo') {
+    const requiredVars = ['BREVO_API_KEY', 'MAIL_FROM'];
+    const missing = requiredVars.filter((key) => !process.env[key]);
+    if (missing.length > 0) {
+      throw new Error(`Thiếu các biến môi trường Brevo bắt buộc: ${missing.join(', ')}`);
+    }
+    return;
+  }
+
+  throw new Error(`MAIL_TRANSPORT không hợp lệ: ${transport}. Chỉ hỗ trợ 'dev', 'smtp' hoặc 'brevo'.`);
 }
 
 function createEmailService(options = {}) {
   let transporter = options.transporter || null;
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
 
   function getTransporter() {
     if (!transporter) {
@@ -72,6 +89,44 @@ function createEmailService(options = {}) {
       console.log('====================================================\n');
 
       return { devPreview: true, to, subject };
+    }
+
+    if (transport === 'brevo') {
+      const sender = parseMailFrom(options.mailFrom || process.env.MAIL_FROM);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), Number(process.env.MAIL_TIMEOUT_MS || 10000));
+      try {
+        const response = await fetchImpl('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'api-key': options.brevoApiKey || process.env.BREVO_API_KEY,
+          },
+          body: JSON.stringify({
+            sender,
+            to: [{ email: to }],
+            subject,
+            textContent: text,
+            htmlContent: html,
+            ...(Array.isArray(attachments) && attachments.length > 0 ? { attachment: attachments } : {}),
+          }),
+        });
+        if (!response.ok) {
+          const error = new Error(`Brevo email API rejected the request with status ${response.status}.`);
+          error.code = 'BREVO_API_ERROR';
+          error.status = response.status;
+          throw error;
+        }
+        return await response.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    if (transport !== 'smtp') {
+      throw new Error(`MAIL_TRANSPORT không hợp lệ: ${transport}.`);
     }
 
     const client = getTransporter();
@@ -152,6 +207,7 @@ function createEmailService(options = {}) {
     sendActivationCode,
     assertConfiguration,
     escapeHtml,
+    parseMailFrom,
   };
 }
 
@@ -159,5 +215,6 @@ const defaultEmailService = createEmailService();
 defaultEmailService.createEmailService = createEmailService;
 defaultEmailService.assertConfiguration = assertConfiguration;
 defaultEmailService.escapeHtml = escapeHtml;
+defaultEmailService.parseMailFrom = parseMailFrom;
 
 module.exports = defaultEmailService;

@@ -112,13 +112,17 @@ Sau khi tạo, mở file `.env` và điền các thông tin thực tế.
 | `APP_BASE_URL` | Địa chỉ gốc của ứng dụng web | `http://localhost:8090` |
 | `ACTIVATION_CODE_TTL_SECONDS` | Thời gian hiệu lực của mã xác nhận 6 số | `600` |
 | `ACTIVATION_CODE_MAX_ATTEMPTS` | Số lần nhập sai tối đa trước khi phải yêu cầu mã mới | `5` |
-| `MAIL_TRANSPORT` | Phương thức gửi email (`dev` hoặc `smtp`) | `dev` |
+| `MAIL_TRANSPORT` | Phương thức gửi email (`dev`, `smtp` hoặc `brevo`) | `dev` |
+| `BREVO_API_KEY` | API key gửi email HTTPS của Brevo (khi dùng `brevo`) | `xkeysib-...` |
+| `MAIL_TIMEOUT_MS` | Thời gian tối đa chờ nhà cung cấp email | `10000` |
 | `SMTP_HOST` | Địa chỉ máy chủ SMTP (khi dùng `smtp`) | `smtp.example.com` |
 | `SMTP_PORT` | Cổng SMTP | `587` |
 | `SMTP_USER` | Tên người dùng SMTP | `user@example.com` |
 | `SMTP_PASS` | Mật khẩu SMTP | `secret` |
 | `SMTP_SECURE` | Cấu hình SSL/TLS cho SMTP (`true`/`false`) | `false` |
 | `MAIL_FROM` | Địa chỉ người gửi hiển thị | `"Ban Ve" <no-reply@example.com>` |
+
+Trên Render Free, các cổng SMTP 25/465/587 bị chặn. Hãy dùng `MAIL_TRANSPORT=brevo`, tạo API key Brevo và xác minh địa chỉ gửi trong `MAIL_FROM`; ứng dụng gửi qua HTTPS nên không phụ thuộc cổng SMTP.
 
 > **Lưu ý bảo mật:** Tuyệt đối không commit file `.env` chứa mật khẩu thật vào Git repository.
 
