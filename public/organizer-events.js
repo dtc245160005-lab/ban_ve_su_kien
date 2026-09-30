@@ -576,6 +576,7 @@ function renderStatusAndActions(showtime) {
 }
 
 // Xử lý sự kiện chuyển trạng thái
+
 window.handleStatusChange = async function(showtimeId, targetStatus, buttonEl) {
   if (!buttonEl || buttonEl.disabled) return;
   buttonEl.disabled = true;
@@ -588,20 +589,30 @@ window.handleStatusChange = async function(showtimeId, targetStatus, buttonEl) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      alert(data.message || 'Thao tác không thành công');
+      alert(data.error || data.message || 'Thao tác không thành công');
       buttonEl.disabled = false;
       return;
     }
 
-    if (typeof loadEventDetail === 'function' && typeof currentEventId !== 'undefined') {
-      await loadEventDetail(currentEventId);
-    } else {
-      window.location.reload();
+    const rowEl = buttonEl.closest('.showtime-row');
+    if (rowEl) {
+      const statusLabel = rowEl.querySelector('[data-status-label]');
+      const { badgeHtml, buttonHtml } = renderStatusAndActions({
+        id: showtimeId,
+        status: data.status || targetStatus,
+        seat_count: 1
+      });
+
+      if (statusLabel) {
+        statusLabel.outerHTML = badgeHtml;
+      }
+      buttonEl.outerHTML = buttonHtml;
     }
   } catch {
     alert('Không thể kết nối đến máy chủ');
     buttonEl.disabled = false;
   }
+
 };
   init();
 })();
