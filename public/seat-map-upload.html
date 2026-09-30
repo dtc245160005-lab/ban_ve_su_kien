@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tải lên sơ đồ ghế</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .summary-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .summary-chip {
+        padding: 8px 14px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #166534;
+      }
+      .summary-chip strong {
+        font-size: 16px;
+      }
+      .table-container {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .error-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        text-align: left;
+      }
+      .error-table th {
+        background: #f8fafc;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 700;
+        color: #334155;
+      }
+      .error-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: top;
+      }
+      .error-table tr:last-child td {
+        border-bottom: none;
+      }
+      .error-table tr:hover {
+        background: #fdf2f2;
+      }
+      .legend-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+      .seat-grid-container {
+        width: 100%;
+        overflow: auto;
+        max-height: 520px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #f8fafc;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="topbar">
+        <div>
+          <h1>Tải lên sơ đồ ghế</h1>
+          <p id="accountSummary" class="muted" style="margin: 4px 0 0; font-size: 14px;">Đang tải...</p>
+        </div>
+        <div class="actions-row">
+          <a href="/organizer-events.html" class="secondary-btn small-btn" style="text-decoration: none; text-align: center;">Quay lại sự kiện</a>
+          <button id="logoutBtn" type="button" class="secondary-btn small-btn">Đăng xuất</button>
+        </div>
+      </header>
+
+      <div id="globalMessage" style="margin-bottom: 16px;"></div>
+
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;" id="showtimeTitle">Nhập sơ đồ ghế cho suất diễn</h2>
+          <span id="showtimeBadge" class="badge draft">Suất diễn</span>
+        </div>
+
+        <form id="uploadSeatMapForm" class="auth-form" novalidate>
+          <div class="field-group">
+            <label for="seatMapFile">Tệp JSON sơ đồ ghế (tối đa 5 MB) *</label>
+            <input id="seatMapFile" name="file" type="file" accept=".json,application/json" required />
+            <span id="seatMapFileError" class="field-error"></span>
+          </div>
+
+          <div id="uploadMsg"></div>
+
+          <div class="actions-row">
+            <button id="uploadBtn" type="submit" class="primary-btn" disabled>Xác nhận nạp</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Bảng lỗi khi tệp không hợp lệ -->
+      <section id="errorSection" class="card" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <h2 style="margin: 0; color: var(--error-text);">Danh sách lỗi kiểm tra sơ đồ ghế</h2>
+          <span id="errorCountBadge" class="badge" style="background: var(--error-bg); color: var(--error-text);">0 lỗi</span>
+        </div>
+        <div id="truncatedWarning" class="message warning" style="display: none; margin-bottom: 12px;">
+          Tệp chứa nhiều lỗi. Đang hiển thị 200 lỗi đầu tiên.
+        </div>
+        <div class="table-container">
+          <table class="error-table" id="errorTable">
+            <thead>
+              <tr>
+                <th style="width: 50px;">STT</th>
+                <th style="width: 100px;">Số ghế</th>
+                <th style="width: 110px;">Trường</th>
+                <th style="width: 130px;">Dòng/Cột</th>
+                <th>Nội dung lỗi</th>
+              </tr>
+            </thead>
+            <tbody id="errorTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Xem trước sơ đồ ghế khi tệp hợp lệ -->
+      <section id="previewSection" class="card" style="display: none;">
+        <h2>Xem trước lưới ghế (chưa ghi CSDL)</h2>
+
+        <div class="summary-chips">
+          <div class="summary-chip">Tổng số ghế: <strong id="summarySeatCount">0</strong></div>
+          <div class="summary-chip">Số hạng ghế: <strong id="summaryCategoryCount">0</strong></div>
+          <div class="summary-chip">Số hàng: <strong id="summaryRowCount">0</strong></div>
+        </div>
+
+        <div style="margin-bottom: 8px; font-weight: 700; font-size: 14px;">Chú giải hạng ghế:</div>
+        <div id="legendContainer" class="legend-container"></div>
+
+        <div style="margin-bottom: 8px; font-weight: 700; font-size: 14px;">Sơ đồ bố trí ghế:</div>
+        <div id="seatGridContainer" class="seat-grid-container">
+          <canvas id="seatGridCanvas" style="display: none;"></canvas>
+          <div class="svg-grid-wrapper"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./api.js"></script>
+    <script src="./seatMapValidator.js"></script>
+    <script src="./seatGridPreview.js"></script>
+    <script src="./seat-map-upload.js"></script>
+  </body>
+</html>

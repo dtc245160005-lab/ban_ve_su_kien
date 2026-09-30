@@ -1,37 +1,17 @@
 const defaultDb = require('../db');
 const { AppError, assertCanManage } = require('./eventService');
+const { validateSeatMapText } = require('../public/seatMapValidator');
 
 function parseSeatMap(buffer) {
-  let document;
-  try {
-    document = JSON.parse(buffer.toString('utf8'));
-  } catch {
-    throw new AppError(400, 'Tệp JSON không hợp lệ.');
+  const text = Buffer.isBuffer(buffer) ? buffer.toString('utf8') : String(buffer || '');
+  const result = validateSeatMapText(text);
+  if (!result.valid) {
+    const error = new AppError(400, 'Tệp sơ đồ không hợp lệ.');
+    error.errors = result.errors;
+    error.truncated = Boolean(result.truncated);
+    throw error;
   }
-
-  if (!document || typeof document !== 'object' || Array.isArray(document) ||
-    !Array.isArray(document.seats) || document.seats.length === 0) {
-    throw new AppError(400, 'Tệp phải chứa mảng seats không rỗng.');
-  }
-
-  const seen = new Set();
-  return document.seats.map((seat, index) => {
-    if (!seat || typeof seat !== 'object' || Array.isArray(seat) ||
-      typeof seat.row !== 'string' || !seat.row.trim() ||
-      !Number.isSafeInteger(seat.number) || seat.number <= 0 ||
-      typeof seat.category !== 'string' || !seat.category.trim()) {
-      throw new AppError(400, `Ghế thứ ${index + 1} không hợp lệ.`);
-    }
-
-    const row = seat.row.trim();
-    const category = seat.category.trim();
-    const key = JSON.stringify([row, seat.number]);
-    if (seen.has(key)) {
-      throw new AppError(400, `Ghế thứ ${index + 1} trùng hàng và số ghế.`);
-    }
-    seen.add(key);
-    return { row, number: seat.number, category };
-  });
+  return result.seats;
 }
 
 async function hasBooking(trx, table, showtimeId) {

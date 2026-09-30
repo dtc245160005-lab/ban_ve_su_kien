@@ -1,0 +1,7 @@
+{
+  "seats": [
+    { "row": "A", "number": 1, "category": "VIP" },
+    { "row": "A", "number": 2, "category": "VIP" },
+    { "row": "A", "number": 1, "category": "Thường" }
+  ]
+}

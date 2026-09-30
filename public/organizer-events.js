@@ -233,6 +233,7 @@
           <span>${roomText}</span>
         </div>
         <div class="actions-row">
+          <a href="/seat-map-upload.html?showtimeId=${st.id}" class="secondary-btn small-btn" style="text-decoration: none;">Sơ đồ ghế</a>
           <button type="button" class="secondary-btn small-btn edit-st-btn">Sửa</button>
           <button type="button" class="danger-btn delete-st-btn">Xoá</button>
         </div>
