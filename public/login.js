@@ -42,7 +42,7 @@ function showAccountNotActive(message, email) {
   resendBtn.style.width = '100%';
   resendBtn.style.padding = '8px 12px';
   resendBtn.style.cursor = 'pointer';
-  resendBtn.textContent = 'Gửi lại email kích hoạt';
+  resendBtn.textContent = 'Gửi lại mã xác nhận';
 
   resendBtn.addEventListener('click', async () => {
     resendBtn.disabled = true;
@@ -54,13 +54,13 @@ function showAccountNotActive(message, email) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
+      await res.json();
       messageBox.className = 'message success';
-      messageBox.textContent =
-        data.message || 'Nếu email hợp lệ, bạn sẽ nhận được hướng dẫn trong hộp thư.';
+      sessionStorage.setItem('activationEmail', email.toLowerCase());
+      window.location.assign(`/activate.html?email=${encodeURIComponent(email.toLowerCase())}`);
     } catch {
       messageBox.className = 'message error';
-      messageBox.textContent = 'Không thể gửi lại email lúc này. Vui lòng thử lại sau.';
+      messageBox.textContent = 'Không thể gửi lại mã lúc này. Vui lòng thử lại sau.';
     }
   });
 

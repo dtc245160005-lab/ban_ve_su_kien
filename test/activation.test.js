@@ -57,6 +57,62 @@ describe('T-08 Account Activation & Resend Tests', () => {
     return { user, rawToken: tokenObj.rawToken, tokenHash: tokenObj.tokenHash };
   }
 
+  async function createInactiveUserWithCode(email, password = 'Password@123') {
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    const codeObj = activationService.createActivationCode(email);
+    const [user] = await db('users')
+      .insert({
+        email,
+        full_name: 'OTP Test User',
+        password_hash: passwordHash,
+        is_active: false,
+      })
+      .returning('*');
+    const buyerRole = await db('roles').where({ name: 'buyer' }).first('id');
+    await db('user_roles').insert({ user_id: user.id, role_id: buyerRole.id });
+    await db('email_activation_tokens').insert({
+      user_id: user.id,
+      purpose: 'register',
+      token_hash: codeObj.tokenHash,
+      expires_at: codeObj.expiresAt,
+    });
+    return { user, rawCode: codeObj.rawCode };
+  }
+
+  test('OTP 6 số đúng kích hoạt tài khoản và chỉ dùng được một lần', async () => {
+    const email = `otp_success_${Date.now()}@example.test`;
+    const { rawCode } = await createInactiveUserWithCode(email);
+    const first = await fetch(`${baseUrl}/api/auth/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code: rawCode }),
+    });
+    assert.strictEqual(first.status, 200);
+    assert.strictEqual((await db('users').where({ email }).first()).is_active, true);
+
+    const second = await fetch(`${baseUrl}/api/auth/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code: rawCode }),
+    });
+    assert.strictEqual(second.status, 409);
+  });
+
+  test('OTP sai 5 lần bị khóa và phải yêu cầu mã mới', async () => {
+    const email = `otp_locked_${Date.now()}@example.test`;
+    await createInactiveUserWithCode(email);
+    let response;
+    for (let i = 0; i < 5; i += 1) {
+      response = await fetch(`${baseUrl}/api/auth/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: '999999' }),
+      });
+    }
+    assert.strictEqual(response.status, 429);
+    assert.strictEqual((await response.json()).code, 'CODE_LOCKED');
+  });
+
   test('1. Kích hoạt đúng: 200; sau đó đăng nhập thành công', async () => {
     const email = `act_success_${Date.now()}@example.test`;
     const password = 'Password@123';
@@ -248,7 +304,7 @@ describe('T-08 Account Activation & Resend Tests', () => {
     assert.strictEqual(responses.length, 6);
     const expectedBody = {
       success: true,
-      message: 'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.',
+      message: 'Nếu email hợp lệ và chưa xác nhận, mã xác nhận mới sẽ được gửi đến hộp thư.',
     };
     for (const body of responses) {
       assert.deepStrictEqual(body, expectedBody);
@@ -497,7 +553,7 @@ describe('T-08 Account Activation & Resend Tests', () => {
       const body6 = await res6.json();
       assert.deepStrictEqual(body6, {
         success: true,
-        message: 'Nếu email hợp lệ và chưa kích hoạt, bạn sẽ nhận được hướng dẫn trong hộp thư.',
+        message: 'Nếu email hợp lệ và chưa xác nhận, mã xác nhận mới sẽ được gửi đến hộp thư.',
       });
       assert.strictEqual(devMailCount, mailBefore6, 'Gửi lại lần 6 không được gửi thêm email');
 

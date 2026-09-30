@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kích hoạt tài khoản</title>
+    <title>Xác nhận tài khoản</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -11,38 +11,27 @@
       <section class="auth-card" aria-labelledby="activate-title">
         <div class="brand-block">
           <div class="brand-icon" aria-hidden="true">A</div>
-          <h1 id="activate-title">Kích hoạt tài khoản</h1>
-          <p id="statusSubtitle">Đang xác thực liên kết kích hoạt...</p>
+          <h1 id="activate-title">Nhập mã xác nhận</h1>
+          <p>Mã 6 số đã được gửi đến Gmail của bạn và có hiệu lực trong 10 phút.</p>
         </div>
-
-        <div id="statusBox" class="message" role="alert" aria-live="polite" hidden></div>
-
-        <div id="actionArea" style="margin-top: 20px;"></div>
-
-        <form id="resendForm" class="auth-form" style="margin-top: 20px;" hidden novalidate>
-          <hr style="border: 0; border-top: 1px solid var(--color-border); margin-bottom: 20px;" />
-          <p style="font-size: 0.9em; color: var(--color-text-muted); margin-bottom: 12px;">
-            Nhập email để nhận liên kết kích hoạt mới:
-          </p>
+        <form id="activateForm" class="auth-form" novalidate>
           <div class="field-group">
-            <label for="resendEmail">Email</label>
-            <input
-              id="resendEmail"
-              name="email"
-              type="email"
-              placeholder="example@email.com"
-              required
-            />
+            <label for="activationEmail">Email</label>
+            <input id="activationEmail" name="email" type="email" autocomplete="email" required />
           </div>
-          <button id="resendButton" class="primary-btn" type="submit">Gửi lại email kích hoạt</button>
+          <div class="field-group">
+            <label for="activationCode">Mã xác nhận</label>
+            <input id="activationCode" class="otp-input" name="code" type="text" inputmode="numeric"
+              autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required />
+            <div id="codeError" class="field-error" aria-live="polite"></div>
+          </div>
+          <div id="statusBox" class="message error" role="alert" aria-live="polite" hidden></div>
+          <button id="activateButton" class="primary-btn" type="submit">Xác nhận</button>
+          <button id="resendButton" class="secondary-btn" type="button">Gửi lại mã</button>
         </form>
-
-        <p class="footer-text" style="margin-top: 24px;">
-          <a href="/login.html">Quay lại trang Đăng nhập</a>
-        </p>
+        <p class="footer-text"><a href="/login.html">Quay lại đăng nhập</a></p>
       </section>
     </main>
-
     <script src="./activate.js" defer></script>
   </body>
 </html>
