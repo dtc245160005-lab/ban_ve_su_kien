@@ -338,4 +338,23 @@ npm run backup
 
 - Trên Render dùng Docker, container chạy `npm run migrate:latest` trước `npm start`; không seed hay rollback dữ liệu staging. Hãy kiểm tra backup và CI trước khi merge migration. `npm run verify` vẫn chỉ dùng database tạm và rollback database tạm.
 
+---
+
+## 11. Trạng thái ghế & lưới chọn ghế (T-19 – T-21 / S-09)
+
+- API cần đăng nhập: `GET /api/showtimes/:showtimeId/seats`, trả đúng ba trạng
+  thái `AVAILABLE`, `HELD`, `SOLD`. Dữ liệu suất diễn và 2.000 ghế được đọc bằng
+  một câu SQL, không N+1.
+- Trang người mua: `/seat-map.html?showtime=<id>`. Dùng một Canvas cho toàn bộ
+  ghế, hỗ trợ pan/zoom và phân biệt trạng thái bằng cả màu lẫn ký hiệu. Ghế đang
+  giữ hoặc đã bán không thể chọn.
+- Xem nhanh không cần dữ liệu DB: `/seat-map.html?demo=1`.
+- Sinh lại tệp mẫu 2.000 ghế: `npm run generate:seat-map`. Có thể truyền số ghế
+  tùy ý bằng `--count`, `--seats-per-row` và `--output`.
+- Đo lại trên trình duyệt: `/seat-map-benchmark.html`.
+
+Kết quả local ngày 2026-09-30: truy vấn PostgreSQL 2.000 ghế **74,5 ms** (một
+query); p95 tải trang đến khi Canvas vẽ xong là **153,6 ms** trên desktop và
+**52,2 ms** ở viewport 390 × 844 (10 lượt mỗi cấu hình). Chi tiết hợp đồng và
+điểm nối bảng giữ ghế/vé nằm tại `docs/ac/s09.md`.
 

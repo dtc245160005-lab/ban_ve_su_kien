@@ -8,6 +8,7 @@
     "build": "node scripts/build.js",
     "setup": "node scripts/setup.js",
     "doctor": "node scripts/doctor.js",
+    "generate:seat-map": "node scripts/generate-seat-map.js",
     "spike:holds": "node scripts/spike-seat-holds.js",
     "staging:check": "node scripts/check-staging.js",
     "test": "node --test",
