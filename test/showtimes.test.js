@@ -380,4 +380,67 @@ describe('S-04 / T-09 / T-10 Showtimes Management API Tests', () => {
     });
     assert.strictEqual(delRes.status, 200);
   });
+
+  test('9. Trạng thái showtime: trả số ghế, đổi trạng thái và kiểm tra quyền', async () => {
+    const [emptyShowtime] = await db('showtimes')
+      .insert({
+        event_id: eventA.id,
+        starts_at: new Date('2026-12-31T10:00:00Z'),
+      })
+      .returning('*');
+
+    const noSeatsRes = await fetch(`${baseUrl}/api/organizer/showtimes/${emptyShowtime.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: cookieA },
+      body: JSON.stringify({ status: 'on_sale' }),
+    });
+    assert.strictEqual(noSeatsRes.status, 409);
+
+    const [showtime] = await db('showtimes')
+      .insert({
+        event_id: eventA.id,
+        starts_at: new Date('2027-01-01T10:00:00Z'),
+      })
+      .returning('*');
+    const [category] = await db('seat_categories')
+      .insert({ showtime_id: showtime.id, name: 'Phổ thông' })
+      .returning('*');
+    await db('seats').insert({
+      showtime_id: showtime.id,
+      category_id: category.id,
+      row_label: 'A',
+      seat_number: 1,
+    });
+
+    const detailRes = await fetch(`${baseUrl}/api/organizer/events/${eventA.id}`, {
+      headers: { cookie: cookieA },
+    });
+    assert.strictEqual(detailRes.status, 200);
+    const detailData = await detailRes.json();
+    const returnedShowtime = detailData.data.showtimes.find((item) => item.id === showtime.id);
+    assert.strictEqual(Number(returnedShowtime.seat_count), 1);
+
+    const openRes = await fetch(`${baseUrl}/api/organizer/showtimes/${showtime.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: cookieA },
+      body: JSON.stringify({ status: 'on_sale' }),
+    });
+    assert.strictEqual(openRes.status, 200);
+    assert.strictEqual((await openRes.json()).data.status, 'on_sale');
+
+    const closeRes = await fetch(`${baseUrl}/api/organizer/showtimes/${showtime.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: cookieA },
+      body: JSON.stringify({ status: 'closed' }),
+    });
+    assert.strictEqual(closeRes.status, 200);
+    assert.strictEqual((await closeRes.json()).data.status, 'closed');
+
+    const unauthorizedRes = await fetch(`${baseUrl}/api/organizer/showtimes/${showtime.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: cookieB },
+      body: JSON.stringify({ status: 'on_sale' }),
+    });
+    assert.strictEqual(unauthorizedRes.status, 403);
+  });
 });

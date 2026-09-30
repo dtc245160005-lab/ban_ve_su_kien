@@ -2,7 +2,7 @@
 (function () {
   const urlParams = new URLSearchParams(window.location.search);
   const currentEventId = urlParams.get('id');
-
+ 
   // Elements
   const accountSummary = document.getElementById('accountSummary');
   const logoutBtn = document.getElementById('logoutBtn');
@@ -226,13 +226,18 @@
           }).format(new Date(st.starts_at));
 
       const roomText = st.room_name ? ` · <b>${escapeHtml(st.room_name)}</b>` : ' · <i>(Chưa đặt phòng)</i>';
+      const { badgeHtml, buttonHtml } = renderStatusAndActions(st);
 
       row.innerHTML = `
         <div>
-          <span style="font-weight: 600;">${formattedTime}</span>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-weight: 600;">${formattedTime}</span>
+            ${badgeHtml}
+          </div>
           <span>${roomText}</span>
         </div>
         <div class="actions-row">
+          ${buttonHtml}
           <a href="/seat-map-upload.html?showtimeId=${st.id}" class="secondary-btn small-btn" style="text-decoration: none;">Sơ đồ ghế</a>
           <button type="button" class="secondary-btn small-btn edit-st-btn">Sửa</button>
           <button type="button" class="danger-btn delete-st-btn">Xoá</button>
@@ -544,6 +549,59 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
+// Render nhãn trạng thái và nút hành động (giữ nguyên liên kết Sơ đồ ghế của T-14)
+function renderStatusAndActions(showtime) {
+  const { id, status, seat_count } = showtime;
+  const hasSeats = parseInt(seat_count || 0, 10) > 0;
 
+  let badgeHtml = '';
+  let buttonHtml = '';
+
+  if (status === 'draft') {
+    badgeHtml = '<span class="badge draft" data-status-label>Nháp</span>';
+    if (!hasSeats) {
+      buttonHtml = '<button type="button" class="secondary-btn small-btn" disabled title="Cần nạp sơ đồ ghế trước">Mở bán</button>';
+    } else {
+      buttonHtml = `<button type="button" class="secondary-btn small-btn" data-action="open" onclick="handleStatusChange(${id}, 'on_sale', this)">Mở bán</button>`;
+    }
+  } else if (status === 'on_sale') {
+    badgeHtml = '<span class="badge published" data-status-label>Đang bán</span>';
+    buttonHtml = `<button type="button" class="danger-btn small-btn" data-action="close" onclick="handleStatusChange(${id}, 'closed', this)">Đóng bán</button>`;
+  } else if (status === 'closed') {
+    badgeHtml = '<span class="badge archived" data-status-label>Đã đóng</span>';
+    buttonHtml = `<button type="button" class="secondary-btn small-btn" data-action="reopen" onclick="handleStatusChange(${id}, 'on_sale', this)">Mở lại</button>`;
+  }
+
+  return { badgeHtml, buttonHtml };
+}
+
+// Xử lý sự kiện chuyển trạng thái
+window.handleStatusChange = async function(showtimeId, targetStatus, buttonEl) {
+  if (!buttonEl || buttonEl.disabled) return;
+  buttonEl.disabled = true;
+
+  try {
+    const res = await apiFetch(`/api/organizer/showtimes/${showtimeId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status: targetStatus }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.message || 'Thao tác không thành công');
+      buttonEl.disabled = false;
+      return;
+    }
+
+    if (typeof loadEventDetail === 'function' && typeof currentEventId !== 'undefined') {
+      await loadEventDetail(currentEventId);
+    } else {
+      window.location.reload();
+    }
+  } catch {
+    alert('Không thể kết nối đến máy chủ');
+    buttonEl.disabled = false;
+  }
+};
   init();
 })();

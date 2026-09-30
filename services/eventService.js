@@ -81,6 +81,12 @@ function createEventService(customDb) {
     assertCanManage(user, event);
 
     const showtimes = await db('showtimes')
+      .select('showtimes.*')
+      .select(db.raw(`(
+        SELECT COUNT(*)::integer
+        FROM seats
+        WHERE seats.showtime_id = showtimes.id
+      ) AS seat_count`))
       .where({ event_id: id })
       .orderBy('starts_at', 'asc')
       .orderBy('id', 'asc');

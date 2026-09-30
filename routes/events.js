@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const defaultEventService = require('../services/eventService');
 const { createSeatMapService } = require('../services/seatMapService');
+const { changeShowtimeStatus } = require('../services/showtimeStatusService');
 const { secure } = require('../middleware/routeRegistry');
 const { logEvent } = require('../lib/logger');
 
@@ -185,7 +186,26 @@ function createOrganizerEventsRouter(options = {}) {
     }
   });
 
-  // 8. DELETE /api/organizer/showtimes/:id
+  // 8. POST /api/organizer/showtimes/:id/status
+  secure(router, 'post', '/showtimes/:id/status', allowedRoles, async (req, res) => {
+    try {
+      const showtimeId = Number(req.params.id);
+      if (!Number.isSafeInteger(showtimeId) || showtimeId <= 0) {
+        return res.status(404).json({ success: false, message: 'Suất diễn không tồn tại.' });
+      }
+
+      const result = await changeShowtimeStatus(showtimeId, req.body?.status, req.user, options.db);
+      return res.status(200).json({ success: true, data: result });
+    } catch (err) {
+      if (err.status) {
+        return res.status(err.status).json({ success: false, message: err.message, errors: err.errors });
+      }
+      console.error('Error changing showtime status:', err.message);
+      return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
+    }
+  });
+
+  // 9. DELETE /api/organizer/showtimes/:id
   secure(router, 'delete', '/showtimes/:id', allowedRoles, async (req, res) => {
     try {
       const showtimeId = Number(req.params.id);

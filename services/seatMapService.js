@@ -13,7 +13,6 @@ function parseSeatMap(buffer) {
   }
   return result.seats;
 }
-
 async function hasBooking(trx, table, showtimeId) {
   if (!await trx.schema.hasTable(table)) return false;
 
@@ -56,7 +55,7 @@ async function hasBooking(trx, table, showtimeId) {
 }
 
 function createSeatMapService(customDb = defaultDb) {
-  async function importSeatMap(showtimeId, buffer, user) {
+  async function  importSeatMap(showtimeId, buffer, user) {
     if (!Number.isSafeInteger(showtimeId) || showtimeId <= 0) {
       throw new AppError(404, 'Suất diễn không tồn tại.');
     }
@@ -66,10 +65,14 @@ function createSeatMapService(customDb = defaultDb) {
       return await customDb.transaction(async (trx) => {
         // Serializes imports for the same showtime, including first-time imports.
         const showtime = await trx('showtimes').where({ id: showtimeId }).forUpdate().first();
-        if (!showtime) throw new AppError(404, 'Suất diễn không tồn tại.');
-        const event = await trx('events').where({ id: showtime.event_id }).first();
-        assertCanManage(user, event);
+      if (!showtime) throw new AppError(404, 'Suất diễn không tồn tại.');
 
+      if (showtime.status === 'on_sale') {
+         throw new AppError(409, 'Không thể thay sơ đồ khi suất đang mở bán');
+}
+
+const event = await trx('events').where({ id: showtime.event_id }).first();
+assertCanManage(user, event);
         if (await hasBooking(trx, 'tickets', showtimeId) ||
           await hasBooking(trx, 'seat_holds', showtimeId)) {
           throw new AppError(409, 'Không thể nạp lại khi suất diễn có vé hoặc ghế đang giữ.');
