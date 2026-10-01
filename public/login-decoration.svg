@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#bfdbfe" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#eff6ff" stop-opacity=".05"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#93c5fd" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#93c5fd" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="-85" cy="180" r="270" fill="url(#fade)"/>
+  <circle cx="1610" cy="95" r="245" fill="url(#fade)"/>
+  <circle cx="1490" cy="935" r="290" fill="#dbeafe" fill-opacity=".62"/>
+  <g fill="#93c5fd" fill-opacity=".35">
+    <circle cx="173" cy="205" r="5"/><circle cx="203" cy="205" r="5"/><circle cx="233" cy="205" r="5"/><circle cx="263" cy="205" r="5"/>
+    <circle cx="173" cy="235" r="5"/><circle cx="203" cy="235" r="5"/><circle cx="233" cy="235" r="5"/><circle cx="263" cy="235" r="5"/>
+    <circle cx="173" cy="265" r="5"/><circle cx="203" cy="265" r="5"/><circle cx="233" cy="265" r="5"/><circle cx="263" cy="265" r="5"/>
+    <circle cx="1390" cy="790" r="4"/><circle cx="1416" cy="790" r="4"/><circle cx="1442" cy="790" r="4"/>
+    <circle cx="1390" cy="816" r="4"/><circle cx="1416" cy="816" r="4"/><circle cx="1442" cy="816" r="4"/>
+  </g>
+  <path d="M1115 515c92-35 72-177 173-212 90-31 149 29 214 78" stroke="#60a5fa" stroke-opacity=".28" stroke-width="3" stroke-dasharray="11 14"/>
+  <g transform="translate(1260 385) rotate(22)" stroke="#60a5fa" stroke-opacity=".20" stroke-width="9" stroke-linejoin="round">
+    <path d="M0 20c18 0 20-18 20-20h165v70c-17 0-25 10-25 25s8 25 25 25v70H20c0-16-7-20-20-20V20Z" fill="#dbeafe" fill-opacity=".36"/>
+    <path d="M94 0v190" stroke-dasharray="12 16"/>
+    <path d="M35 46h38M35 72h26M115 132h45M115 154h35" stroke-linecap="round"/>
+    <path d="m139 35 6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2 6-12Z" fill="#60a5fa" fill-opacity=".24"/>
+  </g>
+  <g opacity=".65">
+    <path d="M0 610 390 450l-88 300H0Z" fill="url(#beam)"/>
+    <path d="M0 710 330 440l80 310H0Z" fill="url(#beam)"/>
+    <path d="M5 495h375M20 517h345M28 495v150m80-150v120m160-120v120m100-120v120" stroke="#60a5fa" stroke-opacity=".21" stroke-width="4"/>
+    <path d="M0 760c25-55 54-48 72-2 20-63 53-64 78-7 16-53 51-51 68 4 25-62 59-47 71 0 27-49 62-45 78 3 21-48 51-42 63 11v131H0Z" fill="#93c5fd" fill-opacity=".25"/>
+  </g>
+</svg>

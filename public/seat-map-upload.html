@@ -83,7 +83,7 @@
           <p id="accountSummary" class="muted" style="margin: 4px 0 0; font-size: 14px;">Đang tải...</p>
         </div>
         <div class="actions-row">
-          <a href="/organizer-events.html" class="secondary-btn small-btn" style="text-decoration: none; text-align: center;">Quay lại sự kiện</a>
+          <a id="backToEventLink" href="/organizer-events.html" class="secondary-btn small-btn" style="text-decoration: none; text-align: center;">Quay lại sự kiện</a>
           <button id="logoutBtn" type="button" class="secondary-btn small-btn">Đăng xuất</button>
         </div>
       </header>
@@ -97,6 +97,8 @@
         </div>
 
         <form id="uploadSeatMapForm" class="auth-form" novalidate>
+          <p id="savedSeatMapStatus" class="muted">Đang kiểm tra sơ đồ ghế đã lưu...</p>
+          <p class="muted">Chọn tệp JSON rồi xem trước và bấm “Xác nhận nạp” để lưu. <a href="/seat-map-example.json" download>Tải tệp mẫu</a>.</p>
           <div class="field-group">
             <label for="seatMapFile">Tệp JSON sơ đồ ghế (tối đa 5 MB) *</label>
             <input id="seatMapFile" name="file" type="file" accept=".json,application/json" required />

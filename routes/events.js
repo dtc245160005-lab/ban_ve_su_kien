@@ -115,6 +115,22 @@ function createOrganizerEventsRouter(options = {}) {
     }
   });
 
+  secure(router, 'post', '/events/:id/publish', allowedRoles, async (req, res) => {
+    try {
+      const eventId = Number(req.params.id);
+      if (!Number.isSafeInteger(eventId) || eventId <= 0) {
+        return res.status(404).json({ success: false, message: 'Sự kiện không tồn tại.' });
+      }
+      const event = await eventService.publishEvent(eventId, req.user);
+      logEvent('event_published', { userId: req.user?.id });
+      return res.status(200).json({ success: true, data: event });
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ success: false, message: err.message });
+      console.error('Error publishing event:', err.code || 'unexpected error');
+      return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
+    }
+  });
+
   // 5. DELETE /api/organizer/events/:id
   secure(router, 'delete', '/events/:id', allowedRoles, async (req, res) => {
     try {
@@ -200,6 +216,17 @@ function createOrganizerEventsRouter(options = {}) {
         return res.status(err.status).json({ success: false, message: err.message, errors: err.errors });
       }
       console.error('Error deleting showtime:', err.message);
+      return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
+    }
+  });
+
+  secure(router, 'get', '/showtimes/:id/seats/status', allowedRoles, async (req, res) => {
+    try {
+      const result = await seatMapService.getSeatMapStatus(Number(req.params.id), req.user);
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+      console.error('Error fetching seat map status:', error.code || 'unexpected error');
       return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
     }
   });

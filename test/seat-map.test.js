@@ -170,6 +170,17 @@ describe('T-11 / T-12 seat map migration and import', () => {
     assert.equal(Number(count), 2000);
   });
 
+  test('saved seat map status reports the persisted count to its organizer', async () => {
+    const url = `${baseUrl}/api/organizer/showtimes/${showtime.id}/seats/status`;
+    assert.equal((await fetch(url, { headers: { cookie: buyerCookie } })).status, 403);
+    assert.equal((await fetch(url, { headers: { cookie: otherCookie } })).status, 403);
+    const response = await fetch(url, { headers: { cookie: ownerCookie } });
+    assert.equal(response.status, 200);
+    const status = (await response.json()).data;
+    assert.equal(status.seats_count, 2000);
+    assert.equal(status.event_id, event.id);
+  });
+
   test('late DB failure rolls back every seat, and failed replacement preserves old map', async () => {
     const invalid = JSON.parse(seatMap(2000));
     invalid.seats[1999].row = 'X'.repeat(33); // Exceeds the DB column width at the last seat.

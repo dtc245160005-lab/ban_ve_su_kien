@@ -6,52 +6,55 @@
     <title>Đăng nhập</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <main class="auth-shell">
-      <section class="auth-card" aria-labelledby="login-title">
+  <body class="auth-page login-page">
+    <div id="siteHeader"></div>
+    <main class="auth-shell login-shell">
+      <section class="auth-card login-card" aria-labelledby="login-title">
         <div class="brand-block">
-          <div class="brand-icon" aria-hidden="true">A</div>
           <h1 id="login-title">Đăng nhập</h1>
-          <p>Quản lý và mua vé sự kiện</p>
+          <p>Chào mừng bạn quay trở lại</p>
         </div>
 
         <form id="loginForm" class="auth-form" novalidate>
           <div class="field-group">
             <label for="email">Email</label>
-            <input
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><input
               id="email"
               name="email"
               type="email"
               autocomplete="email"
-              placeholder="example@email.com"
+              placeholder="Nhập địa chỉ email của bạn"
               required
-            />
+            /></div>
+            <div id="emailError" class="field-error" aria-live="polite"></div>
           </div>
 
           <div class="field-group">
             <label for="password">Mật khẩu</label>
-            <input
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1"/></svg></span><input
               id="password"
               name="password"
               type="password"
               autocomplete="current-password"
-              placeholder="Nhập mật khẩu"
+              placeholder="Nhập mật khẩu của bạn"
               required
-            />
+            /><button id="togglePassword" class="password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <div id="passwordError" class="field-error" aria-live="polite"></div>
           </div>
 
           <div id="messageBox" class="message error" role="alert" aria-live="polite" hidden></div>
 
-          <button id="submitButton" class="primary-btn" type="submit">Đăng nhập</button>
+          <button id="submitButton" class="primary-btn login-submit" type="submit" disabled><span id="submitLabel">Đăng nhập</span><svg class="submit-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
         </form>
 
         <p class="footer-text">
           Chưa có tài khoản?
-          <a href="/register.html">Tạo tài khoản</a>
+          <a href="/register.html">Đăng ký ngay</a>
         </p>
       </section>
     </main>
 
+    <script src="./site-header.js" defer></script>
     <script src="./login.js" defer></script>
   </body>
 </html>

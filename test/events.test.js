@@ -190,6 +190,44 @@ describe('S-04 / T-09 / T-10 Events Management API Tests', () => {
     assert.strictEqual(found.owner_id, undefined, 'Public response tuyệt đối không chứa trường owner_id');
   });
 
+  test('organizer publishes only after a future showtime has saved seats, then buyer sees it', async () => {
+    const [event] = await db('events').insert({
+      title: 'Publish flow test', venue: 'Test venue', status: 'draft', owner_id: organizerA.id,
+    }).returning('*');
+    const url = `${baseUrl}/api/organizer/events/${event.id}/publish`;
+    const request = (cookie) => fetch(url, { method: 'POST', headers: { cookie } });
+
+    assert.strictEqual((await request(cookieBuyer)).status, 403);
+    assert.strictEqual((await request(cookieB)).status, 403);
+    assert.strictEqual((await request(cookieA)).status, 409);
+
+    const [showtime] = await db('showtimes').insert({
+      event_id: event.id, starts_at: new Date(Date.now() + 86400000),
+    }).returning('*');
+    assert.strictEqual((await request(cookieA)).status, 409);
+    const seatMapsUrl = `${baseUrl}/api/workspaces/buyer/events/${event.id}/seat-maps`;
+    assert.strictEqual((await fetch(seatMapsUrl, { headers: { cookie: cookieBuyer } })).status, 404);
+
+    const [category] = await db('seat_categories').insert({ showtime_id: showtime.id, name: 'VIP' }).returning('*');
+    await db('seats').insert({ showtime_id: showtime.id, category_id: category.id, row_label: 'A', seat_number: 1 });
+
+    const response = await request(cookieA);
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual((await response.json()).data.status, 'published');
+    assert.strictEqual((await request(cookieA)).status, 409);
+
+    const buyerResponse = await fetch(`${baseUrl}/api/workspaces/buyer`, { headers: { cookie: cookieBuyer } });
+    assert.strictEqual(buyerResponse.status, 200);
+    const buyerData = await buyerResponse.json();
+    assert.ok(buyerData.data.events.some((item) => item.id === event.id));
+    assert.strictEqual((await fetch(seatMapsUrl, { headers: { cookie: cookieA } })).status, 403);
+    const mapResponse = await fetch(seatMapsUrl, { headers: { cookie: cookieBuyer } });
+    assert.strictEqual(mapResponse.status, 200);
+    const mapData = (await mapResponse.json()).data;
+    assert.strictEqual(mapData.showtimes[0].seatCount, 1);
+    assert.deepStrictEqual(mapData.showtimes[0].rows, [{ row: 'A', seats: [{ number: 1, category: 'VIP' }] }]);
+  });
+
   test('3. Phân quyền: Organizer B GET, PUT, DELETE sự kiện của Organizer A: 403. Id không tồn tại: 404', async () => {
     // Tạo sự kiện thuộc sở hữu của Organizer A
     const [evA] = await db('events')
