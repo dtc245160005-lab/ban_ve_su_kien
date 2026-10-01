@@ -95,3 +95,34 @@ test('login page keeps only supported email/password sign-in and toggles passwor
   assert.equal(password.type, 'password');
   dom.window.close();
 });
+
+test('password input shows error on blur if under 8 characters and clears when valid', () => {
+  const dom = new JSDOM(source('register.html'), {
+    runScripts: 'outside-only',
+    url: 'http://localhost/register.html',
+  });
+  const { window } = dom;
+  window.eval(source('registerForm.js'));
+  window.eval(source('register.js'));
+
+  const passwordInput = window.document.getElementById('password');
+  const passwordError = window.document.getElementById('passwordError');
+
+  // Khi nhập mật khẩu dưới 8 ký tự và blur
+  passwordInput.value = '12345';
+  passwordInput.dispatchEvent(new window.Event('blur'));
+  assert.equal(passwordError.textContent, 'Mật khẩu phải từ 8 đến 128 ký tự.');
+
+  // Khi mật khẩu rỗng và blur
+  passwordInput.value = '';
+  passwordInput.dispatchEvent(new window.Event('blur'));
+  assert.equal(passwordError.textContent, 'Mật khẩu phải từ 8 đến 128 ký tự.');
+
+  // Khi nhập mật khẩu hợp lệ (>= 8 ký tự) và blur
+  passwordInput.value = 'Password123!';
+  passwordInput.dispatchEvent(new window.Event('blur'));
+  assert.equal(passwordError.textContent, '');
+
+  dom.window.close();
+});
+

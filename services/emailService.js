@@ -81,12 +81,28 @@ function createEmailService(options = {}) {
         throw new Error('MAIL_TRANSPORT=dev không được phép chạy trên môi trường production.');
       }
 
-      console.log('\n==================== [DEV MAIL] ====================');
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log('----------------------------------------------------');
-      console.log(text || html);
-      console.log('====================================================\n');
+      const devMailBlock = [
+        '',
+        '==================== [DEV MAIL] ====================',
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        '----------------------------------------------------',
+        text || html,
+        '====================================================',
+        '',
+      ].join('\n');
+
+      console.log(devMailBlock);
+
+      const devMailFile = options.devMailFile || process.env.DEV_MAIL_FILE;
+      if (devMailFile) {
+        try {
+          const fs = require('node:fs');
+          fs.appendFileSync(devMailFile, devMailBlock + '\n', 'utf8');
+        } catch (err) {
+          console.error('[DEV MAIL FILE ERROR]', err.message);
+        }
+      }
 
       return { devPreview: true, to, subject };
     }

@@ -1,5 +1,7 @@
+const fs = require('node:fs');
+const net = require('node:net');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { Client } = require('pg');
 require('dotenv').config();
 
@@ -226,6 +228,75 @@ async function main() {
       });
     } catch (err) {
       failedStep = 'npm test';
+      throw err;
+    }
+
+    // 8. E2E Sprint 1 test với app thật
+    try {
+      console.log('\n[VERIFY STEP] Running E2E Sprint 1 tests against temporary database');
+      const tempMailFile = path.resolve(__dirname, `../.dev_mail_verify_${timestamp}.log`);
+
+      const serverPort = await new Promise((resolve, reject) => {
+        const srv = net.createServer();
+        srv.listen(0, '127.0.0.1', () => {
+          const port = srv.address().port;
+          srv.close(() => resolve(port));
+        });
+        srv.on('error', reject);
+      });
+
+      const appEnv = {
+        ...verifyEnv,
+        PORT: String(serverPort),
+        DEV_MAIL_FILE: tempMailFile,
+      };
+
+      const serverProc = spawn(process.execPath, [path.resolve(__dirname, '../index.js')], {
+        env: appEnv,
+        cwd: path.resolve(__dirname, '..'),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          serverProc.kill();
+          reject(new Error('Timed out waiting for server to start during E2E verification'));
+        }, 15000);
+
+        serverProc.stdout.on('data', (data) => {
+          if (data.toString().includes('Server API đang chạy')) {
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        serverProc.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+        serverProc.on('exit', (code) => {
+          clearTimeout(timeout);
+          reject(new Error(`Server exited prematurely with code ${code}`));
+        });
+      });
+
+      try {
+        const e2eEnv = {
+          ...verifyEnv,
+          BASE_URL: `http://127.0.0.1:${serverPort}`,
+          DEV_MAIL_FILE: tempMailFile,
+          E2E_LOCKOUT: '1',
+          E2E_ORGANIZER_EMAIL: verifyEnv.DEMO_ORGANIZER_EMAIL,
+          E2E_ORGANIZER_PASSWORD: verifyEnv.DEMO_ORGANIZER_PASSWORD,
+        };
+        runCommand(process.execPath, [path.resolve(__dirname, 'e2e-sprint1.js')], e2eEnv);
+      } finally {
+        serverProc.kill();
+        if (fs.existsSync(tempMailFile)) {
+          fs.unlinkSync(tempMailFile);
+        }
+      }
+    } catch (err) {
+      failedStep = 'e2e:sprint1';
       throw err;
     }
   } catch {
