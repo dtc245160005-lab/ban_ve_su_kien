@@ -197,8 +197,9 @@ function createOrganizerEventsRouter(options = {}) {
       const result = await changeShowtimeStatus(showtimeId, req.body?.status, req.user, options.db);
       return res.status(200).json({ success: true, data: result });
     } catch (err) {
-      if (err.status) {
-        return res.status(err.status).json({ success: false, message: err.message, errors: err.errors });
+      const status = err.statusCode || err.status;
+      if (status) {
+        return res.status(status).json({ success: false, message: err.message, error: err.message, errors: err.errors });
       }
       console.error('Error changing showtime status:', err.message);
       return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
@@ -246,23 +247,9 @@ function createOrganizerEventsRouter(options = {}) {
     }
   });
 
-  // API POST đổi trạng thái suất diễn
-  secure(router, 'post', '/showtimes/:id/status', ['organizer', 'admin'], async (req, res, next) => {
-    try {
-      const { id } = req.params;
-      const { status } = req.body;
-      const result = await changeShowtimeStatus(id, status, req.user);
-      return res.status(200).json(result);
-    } catch (err) {
-      if (err.statusCode) {
-        return res.status(err.statusCode).json({ error: err.message });
-      }
-      return next(err);
-    }
-  });
-
   return router;
 }
+
 const defaultPublicEventsRouter = createPublicEventsRouter();
 defaultPublicEventsRouter.createPublicEventsRouter = createPublicEventsRouter;
 defaultPublicEventsRouter.createOrganizerEventsRouter = createOrganizerEventsRouter;
