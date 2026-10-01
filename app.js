@@ -86,7 +86,9 @@ function createApp(options = {}) {
     options.publicEventsRouter ||
     defaultEventsModule.createPublicEventsRouter({
       db,
+      redis: options.redis !== undefined ? options.redis : redisClient,
       eventService: options.eventService,
+      publicCatalogService: options.publicCatalogService,
     });
   publicEventsRouter._mountPrefix = '/api/events';
   app.use('/api/events', publicEventsRouter);

@@ -27,6 +27,8 @@ function receiveSeatMapFile(req, res, next) {
   });
 }
 
+const { registerCatalogRoutes } = require('./catalog');
+
 function createPublicEventsRouter(options = {}) {
   const router = express.Router();
   const eventService = options.eventService || defaultEventService.createEventService(options.db);
@@ -40,6 +42,8 @@ function createPublicEventsRouter(options = {}) {
       return res.status(500).json({ success: false, message: 'Hệ thống đang bận. Vui lòng thử lại sau.' });
     }
   });
+
+  registerCatalogRoutes(router, options);
 
   return router;
 }
