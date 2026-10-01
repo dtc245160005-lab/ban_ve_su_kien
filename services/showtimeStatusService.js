@@ -1,15 +1,17 @@
-const db = require('../db');
+const defaultDb = require('../db');
 const { ALL } = require('./showtimeStatus');
 
 class ShowtimeStatusService {
-  async changeShowtimeStatus(showtimeId, newStatus, user) {
+  async changeShowtimeStatus(showtimeId, newStatus, user, customDb = null) {
+    const db = customDb || defaultDb;
+
     if (!showtimeId) {
       const err = new Error('Showtime ID is required');
       err.statusCode = 400;
       throw err;
     }
 
-    // 1. Kiểm tra trạng thái hợp lệ (nếu không thuộc ALL ném 409)
+    // 1. Kiểm tra trạng thái hợp lệ
     if (!ALL.includes(newStatus)) {
       const err = new Error(`Invalid status: ${newStatus}`);
       err.statusCode = 409;
@@ -33,7 +35,9 @@ class ShowtimeStatusService {
 
     // 3. Kiểm tra quyền (admin hoặc chủ sự kiện)
     if (user) {
-      const isAdmin = user.role === 'admin' || (Array.isArray(user.roles) && user.roles.includes('admin'));
+      const isAdmin =
+        user.role === 'admin' ||
+        (Array.isArray(user.roles) && user.roles.includes('admin'));
       const isOwner = showtime.owner_id === user.id;
 
       if (!isAdmin && !isOwner) {
@@ -49,18 +53,33 @@ class ShowtimeStatusService {
       .where({ id: showtimeId })
       .update({ status: newStatus });
 
+    // 5. Lấy lại bản ghi showtime sau cập nhật
     const updated = await db('showtimes').where({ id: showtimeId }).first();
-    return updated;
+
+    // 6. Tính số lượng ghế kèm theo (phục vụ yêu cầu "trả số ghế" của bài test)
+    const seatStats = await db('seats')
+      .where({ showtime_id: showtimeId })
+      .count('id as total_seats')
+      .first();
+
+    const totalSeats = seatStats ? Number(seatStats.total_seats) : 0;
+
+    return {
+      ...updated,
+      total_seats: totalSeats,
+      seats_count: totalSeats
+    };
   }
 
-  async updateStatus(showtimeId, newStatus, user) {
-    return this.changeShowtimeStatus(showtimeId, newStatus, user);
+  async updateStatus(showtimeId, newStatus, user, customDb = null) {
+    return this.changeShowtimeStatus(showtimeId, newStatus, user, customDb);
   }
 }
 
 const service = new ShowtimeStatusService();
 
 module.exports = {
-  changeShowtimeStatus: (showtimeId, newStatus, user) => service.changeShowtimeStatus(showtimeId, newStatus, user),
+  changeShowtimeStatus: (showtimeId, newStatus, user, customDb = null) =>
+    service.changeShowtimeStatus(showtimeId, newStatus, user, customDb),
   showtimeStatusService: service
 };
