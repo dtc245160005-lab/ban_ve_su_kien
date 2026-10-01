@@ -49,11 +49,13 @@ function createRedisAuthStore(redisClient, options = {}) {
       if (!key) return 0;
       const redisKey = failedKey(key);
 
-      // MULTI (INCR + EXPIRE với tham số NX) để đặt TTL nguyên tử
-      const multi = redisClient.multi();
-      multi.incr(redisKey);
-      multi.expire(redisKey, duration, 'NX');
-      const [failures] = await multi.exec();
+      // Redis 5 does not support EXPIRE NX. A Lua script keeps INCR and the
+      // first TTL assignment atomic without resetting the window on retries.
+      const failures = Number(await redisClient.eval(`
+        local count = redis.call('INCR', KEYS[1])
+        if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+        return count
+      `, { keys: [redisKey], arguments: [String(duration)] }));
 
       if (failures >= maxAttempts) {
         await redisClient.set(lockKey(key), '1', { EX: duration });

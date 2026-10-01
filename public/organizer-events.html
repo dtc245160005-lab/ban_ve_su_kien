@@ -7,9 +7,19 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page-shell">
+    <div id="siteHeader"></div>
+    <div class="organizer-layout">
+      <aside id="organizerSidebar" class="organizer-sidebar" aria-label="Điều hướng ban tổ chức">
+        <a href="/organizer-events.html#dashboard" aria-current="page">Tổng quan</a>
+        <a href="/organizer-events.html#events">Sự kiện của tôi</a>
+        <a href="/organizer-events.html#create">Tạo sự kiện</a>
+        <a href="/app.html">Tài khoản</a>
+        <button id="sidebarLogout" type="button">Đăng xuất</button>
+      </aside>
+    <main class="page-shell organizer-main">
       <header class="topbar">
         <div>
+          <button id="sidebarToggle" class="secondary-btn mobile-sidebar-toggle" type="button" aria-expanded="false" aria-controls="organizerSidebar">☰ Menu</button>
           <h1>Quản lý sự kiện</h1>
           <p id="accountSummary" class="muted" style="margin: 4px 0 0; font-size: 14px;">Đang tải...</p>
         </div>
@@ -23,7 +33,17 @@
 
       <!-- VIEW 1: Danh sách sự kiện & Tạo sự kiện mới -->
       <div id="listView">
-        <section class="card">
+        <section id="dashboard" class="organizer-stats" aria-labelledby="dashboardTitle">
+          <span class="eyebrow">TỔNG QUAN</span>
+          <h2 id="dashboardTitle">Xin chào, ban tổ chức</h2>
+          <p class="muted">Quản lý sự kiện và các suất diễn của bạn.</p>
+          <div class="stats-grid">
+            <div class="stat-card"><strong id="totalEvents">–</strong><span>Tổng sự kiện</span></div>
+            <div class="stat-card"><strong id="draftEvents">–</strong><span>Sự kiện nháp</span></div>
+            <div class="stat-card"><strong id="totalShowtimes">–</strong><span>Tổng suất diễn</span></div>
+          </div>
+        </section>
+        <section id="create" class="card">
           <h2>Tạo sự kiện mới</h2>
           <form id="createEventForm" class="auth-form" novalidate>
             <div class="field-group">
@@ -46,12 +66,15 @@
 
             <div id="createEventMsg"></div>
 
-            <button id="createEventBtn" type="submit" class="primary-btn">Tạo sự kiện (bản nháp)</button>
+            <div class="form-actions">
+              <a href="#events" class="secondary-btn form-link">Hủy</a>
+              <button id="createEventBtn" type="submit" class="primary-btn">Lưu sự kiện (bản nháp)</button>
+            </div>
           </form>
         </section>
 
-        <section class="card">
-          <h2>Danh sách sự kiện của bạn</h2>
+        <section id="events" class="card">
+          <h2>Sự kiện của tôi</h2>
           <div id="eventsListContainer">
             <p class="muted">Đang tải danh sách sự kiện...</p>
           </div>
@@ -96,8 +119,10 @@
 
               <div id="editEventMsg"></div>
 
-              <div class="actions-row">
+              <div class="form-actions">
+                <a href="/organizer-events.html#events" class="secondary-btn form-link">Hủy</a>
                 <button id="saveEventBtn" type="submit" class="primary-btn" style="flex: 2;">Lưu thay đổi</button>
+                <button id="publishEventBtn" type="button" class="primary-btn" style="flex: 1;">Xuất bản</button>
                 <button id="deleteEventBtn" type="button" class="danger-btn" style="flex: 1; padding: 13px 16px; font-size: 15px;">Xoá sự kiện</button>
               </div>
             </form>
@@ -109,7 +134,7 @@
             <div id="showtimeWarning" class="message warning" style="display: none; margin-bottom: 16px;"></div>
 
             <form id="addShowtimeForm" class="auth-form" novalidate style="margin-bottom: 24px;">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div class="form-grid">
                 <div class="field-group">
                   <label for="showtimeStartsAt">Thời điểm bắt đầu (giờ VN) *</label>
                   <input id="showtimeStartsAt" name="starts_at" type="datetime-local" required />
@@ -136,7 +161,9 @@
         </div>
       </div>
     </main>
+    </div>
 
+    <script src="./site-header.js"></script>
     <script src="./api.js"></script>
     <script src="./eventForm.js"></script>
     <script src="./organizer-events.js"></script>

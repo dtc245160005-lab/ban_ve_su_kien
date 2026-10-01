@@ -1,2 +1,35 @@
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Khu vực người mua</title><link rel="stylesheet" href="./styles.css"></head>
-<body data-workspace="buyer"><main class="auth-shell"><section class="auth-card workspace-card"><div class="brand-block"><div class="brand-icon">B</div><h1>Khu vực người mua</h1><p>Các sự kiện đang mở bán</p></div><div id="workspaceMessage" class="message" hidden></div><div id="workspaceContent" class="menu-list"></div><p class="footer-text"><a href="/app.html">Quay lại trang chính</a></p></section></main><script src="./api.js"></script><script src="./role-workspace.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Khu vực người mua</title>
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+      .buyer-event { display: block; margin-bottom: 16px; }
+      .buyer-event p { margin-bottom: 10px; }
+      .buyer-seat-map { margin-top: 16px; }
+      .buyer-showtime { margin: 14px 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+      .buyer-seat-grid { overflow-x: auto; margin-top: 8px; }
+    </style>
+  </head>
+  <body data-workspace="buyer">
+    <div id="siteHeader"></div>
+    <main class="auth-shell">
+      <section class="auth-card workspace-card">
+        <div class="brand-block">
+          <div class="brand-icon">B</div>
+          <h1>Khu vực người mua</h1>
+          <p>Các sự kiện đang mở bán</p>
+        </div>
+        <div id="workspaceMessage" class="message" hidden></div>
+        <div id="workspaceContent" class="menu-list"></div>
+        <p class="footer-text"><a href="/app.html">Quay lại trang chính</a></p>
+      </section>
+    </main>
+    <script src="./api.js"></script>
+    <script src="./site-header.js"></script>
+    <script src="./seatGridPreview.js"></script>
+    <script src="./role-workspace.js"></script>
+  </body>
+</html>

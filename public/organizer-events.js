@@ -6,6 +6,7 @@
   // Elements
   const accountSummary = document.getElementById('accountSummary');
   const logoutBtn = document.getElementById('logoutBtn');
+  const sidebarLogout = document.getElementById('sidebarLogout');
 
   // List view elements
   const listView = document.getElementById('listView');
@@ -19,6 +20,11 @@
   const createEventBtn = document.getElementById('createEventBtn');
   const createEventMsg = document.getElementById('createEventMsg');
   const eventsListContainer = document.getElementById('eventsListContainer');
+  const totalEvents = document.getElementById('totalEvents');
+  const draftEvents = document.getElementById('draftEvents');
+  const totalShowtimes = document.getElementById('totalShowtimes');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const organizerSidebar = document.getElementById('organizerSidebar');
 
   // Detail view elements
   const detailView = document.getElementById('detailView');
@@ -33,6 +39,7 @@
   const editVenueError = document.getElementById('editVenueError');
   const editDescriptionError = document.getElementById('editDescriptionError');
   const saveEventBtn = document.getElementById('saveEventBtn');
+  const publishEventBtn = document.getElementById('publishEventBtn');
   const deleteEventBtn = document.getElementById('deleteEventBtn');
   const editEventMsg = document.getElementById('editEventMsg');
 
@@ -48,6 +55,11 @@
   const showtimesListContainer = document.getElementById('showtimesListContainer');
 
   let currentUser = null;
+
+  sidebarToggle?.addEventListener('click', () => {
+    const open = organizerSidebar.classList.toggle('is-open');
+    sidebarToggle.setAttribute('aria-expanded', String(open));
+  });
 
   function clearErrors() {
     createTitleError.textContent = '';
@@ -110,15 +122,22 @@
       const res = await apiFetch('/api/organizer/events');
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        eventsListContainer.innerHTML = `<div class="message error">${errData.message || 'Không thể tải danh sách sự kiện.'}</div>`;
+        eventsListContainer.innerHTML = '';
+        const alert = document.createElement('div');
+        alert.className = 'message error';
+        alert.textContent = errData.message || 'Không thể tải danh sách sự kiện.';
+        eventsListContainer.appendChild(alert);
         return;
       }
 
       const resData = await res.json();
       const events = resData.data || resData.events || [];
+      totalEvents.textContent = String(events.length);
+      draftEvents.textContent = String(events.filter((event) => event.status === 'draft').length);
+      totalShowtimes.textContent = String(events.reduce((count, event) => count + Number(event.showtimes_count || 0), 0));
 
       if (events.length === 0) {
-        eventsListContainer.innerHTML = '<p class="muted">Bạn chưa tạo sự kiện nào.</p>';
+        eventsListContainer.innerHTML = '<p class="muted">Bạn chưa có sự kiện nào. Hãy tạo sự kiện đầu tiên của bạn.</p><a href="#create" class="secondary-btn small-btn">Tạo sự kiện</a>';
         return;
       }
 
@@ -139,9 +158,10 @@
             <p class="muted" style="margin: 0; font-size: 14px;">
               ${escapeHtml(ev.venue || 'Chưa có địa điểm')} · <b>${ev.showtimes_count || 0}</b> suất diễn
             </p>
+            ${ev.description ? `<p class="muted event-description">${escapeHtml(ev.description)}</p>` : ''}
           </div>
           <div class="actions-row">
-            <a href="/organizer-events.html?id=${ev.id}" class="secondary-btn small-btn" style="text-decoration: none;">Chi tiết & Suất diễn</a>
+            <a href="/organizer-events.html?id=${ev.id}" class="secondary-btn small-btn" style="text-decoration: none;">Xem / chỉnh sửa</a>
           </div>
         `;
         eventsListContainer.appendChild(item);
@@ -194,6 +214,7 @@
       const statusText = event.status === 'published' ? 'Đã xuất bản' : event.status === 'archived' ? 'Đã lưu trữ' : 'Bản nháp';
       eventStatusBadge.className = `badge ${statusClass}`;
       eventStatusBadge.textContent = statusText;
+      publishEventBtn.hidden = event.status !== 'draft';
 
       renderShowtimes(showtimes);
     } catch (err) {
@@ -233,7 +254,7 @@
           <span>${roomText}</span>
         </div>
         <div class="actions-row">
-          <a href="/seat-map-upload.html?showtimeId=${st.id}" class="secondary-btn small-btn" style="text-decoration: none;">Sơ đồ ghế</a>
+          <a href="/seat-map-upload.html?showtimeId=${st.id}&eventId=${currentEventId}" class="secondary-btn small-btn" style="text-decoration: none;">Sơ đồ ghế</a>
           <button type="button" class="secondary-btn small-btn edit-st-btn">Sửa</button>
           <button type="button" class="danger-btn delete-st-btn">Xoá</button>
         </div>
@@ -275,6 +296,7 @@
     }
 
     createEventBtn.disabled = true;
+    createEventBtn.textContent = 'Đang lưu...';
     try {
       const res = await apiFetch('/api/organizer/events', {
         method: 'POST',
@@ -305,6 +327,7 @@
       createEventMsg.textContent = 'Lỗi kết nối khi tạo sự kiện.';
     } finally {
       createEventBtn.disabled = false;
+      createEventBtn.textContent = 'Lưu sự kiện (bản nháp)';
     }
   };
 
@@ -330,6 +353,7 @@
     }
 
     saveEventBtn.disabled = true;
+    saveEventBtn.textContent = 'Đang lưu...';
     try {
       const res = await apiFetch(`/api/organizer/events/${currentEventId}`, {
         method: 'PUT',
@@ -358,6 +382,32 @@
       editEventMsg.textContent = 'Lỗi kết nối khi cập nhật sự kiện.';
     } finally {
       saveEventBtn.disabled = false;
+      saveEventBtn.textContent = 'Lưu thay đổi';
+    }
+  };
+
+  // Xoá sự kiện
+  publishEventBtn.onclick = async () => {
+    if (!window.confirm('Xuất bản sự kiện để người mua có thể thấy?')) return;
+    publishEventBtn.disabled = true;
+    publishEventBtn.textContent = 'Đang xuất bản...';
+    try {
+      const res = await apiFetch(`/api/organizer/events/${currentEventId}/publish`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        editEventMsg.className = 'message error';
+        editEventMsg.textContent = data.message || 'Không thể xuất bản sự kiện.';
+        return;
+      }
+      editEventMsg.className = 'message success';
+      editEventMsg.textContent = 'Đã xuất bản. Người mua có thể thấy sự kiện.';
+      await loadEventDetail(currentEventId);
+    } catch {
+      editEventMsg.className = 'message error';
+      editEventMsg.textContent = 'Lỗi kết nối khi xuất bản sự kiện.';
+    } finally {
+      publishEventBtn.disabled = false;
+      publishEventBtn.textContent = 'Xuất bản';
     }
   };
 
@@ -420,6 +470,7 @@
     }
 
     addShowtimeBtn.disabled = true;
+    addShowtimeBtn.textContent = 'Đang lưu...';
     try {
       const res = await apiFetch(`/api/organizer/events/${currentEventId}/showtimes`, {
         method: 'POST',
@@ -459,6 +510,7 @@
       addShowtimeMsg.textContent = 'Lỗi kết nối khi thêm suất diễn.';
     } finally {
       addShowtimeBtn.disabled = false;
+      addShowtimeBtn.textContent = 'Thêm suất diễn';
     }
   };
 
@@ -530,10 +582,12 @@
   }
 
   // Đăng xuất
-  logoutBtn.onclick = async () => {
+  const logout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST' });
     window.location.replace('/login.html');
   };
+  logoutBtn.onclick = logout;
+  sidebarLogout?.addEventListener('click', logout);
 
   function escapeHtml(str) {
     if (!str) return '';

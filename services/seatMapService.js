@@ -56,6 +56,18 @@ async function hasBooking(trx, table, showtimeId) {
 }
 
 function createSeatMapService(customDb = defaultDb) {
+  async function getSeatMapStatus(showtimeId, user) {
+    if (!Number.isSafeInteger(showtimeId) || showtimeId <= 0) {
+      throw new AppError(404, 'Suất diễn không tồn tại.');
+    }
+    const showtime = await customDb('showtimes').where({ id: showtimeId }).first();
+    if (!showtime) throw new AppError(404, 'Suất diễn không tồn tại.');
+    const event = await customDb('events').where({ id: showtime.event_id }).first();
+    assertCanManage(user, event);
+    const [{ count }] = await customDb('seats').where({ showtime_id: showtimeId }).count('* as count');
+    return { showtime_id: showtimeId, event_id: showtime.event_id, seats_count: Number(count) };
+  }
+
   async function importSeatMap(showtimeId, buffer, user) {
     if (!Number.isSafeInteger(showtimeId) || showtimeId <= 0) {
       throw new AppError(404, 'Suất diễn không tồn tại.');
@@ -105,7 +117,7 @@ function createSeatMapService(customDb = defaultDb) {
     }
   }
 
-  return { importSeatMap };
+  return { importSeatMap, getSeatMapStatus };
 }
 
 module.exports = { createSeatMapService, parseSeatMap };

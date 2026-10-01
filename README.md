@@ -266,6 +266,20 @@ npm run backup
 
 ## 9. Quản Lý Sự Kiện & Suất Diễn (T-09, T-10 / S-04)
 
+### Giao diện Sprint 1
+
+- `/home.html`: trang công khai; tải các sự kiện đã xuất bản qua `GET /api/events`.
+- `/login.html`: đăng nhập qua `POST /api/auth/login`, chuyển đến khu vực phù hợp với vai trò; hỗ trợ hiện/ẩn mật khẩu và báo thời gian khóa tạm thời. Giao diện dùng biểu tượng vé và nền SVG nhẹ; không hiện đăng nhập Google, ghi nhớ đăng nhập hay quên mật khẩu vì backend chưa hỗ trợ các chức năng này.
+- `/register.html`: đăng ký người mua qua `POST /api/auth/register`, kiểm tra họ tên/email/mật khẩu/xác nhận mật khẩu ở trình duyệt; sau phản hồi chung `202`, hiển thị hướng dẫn kiểm tra email và liên kết tới bước nhập mã tại `/activate.html` (`POST /api/auth/activate`, `POST /api/auth/resend-activation`).
+- `/organizer-events.html`: dashboard tính từ `GET /api/organizer/events`, tạo/sửa sự kiện và thêm suất diễn qua các API organizer hiện có. Dữ liệu dashboard không phải số liệu giả.
+- `/buyer.html`: xem sự kiện đã xuất bản qua `GET /api/workspaces/buyer` và xem sơ đồ ghế đã lưu qua `GET /api/workspaces/buyer/events/:id/seat-maps`. Chưa có chức năng chọn ghế, mua vé hoặc thanh toán.
+
+Menu được thay đổi theo phiên/role ở frontend để dễ sử dụng; phân quyền thật vẫn nằm ở middleware backend. Nếu màn hình nhỏ, menu chuyển sang nút mở/đóng; form vẫn cuộn dọc bình thường.
+
+Luồng mở bán: tạo sự kiện (bản nháp) → thêm suất diễn trong tương lai → vào **Sơ đồ ghế**, chọn tệp JSON và bấm **Xác nhận nạp** → quay về chi tiết sự kiện, bấm **Xuất bản**. Sự kiện chỉ hiện ở `/buyer.html` sau khi xuất bản. Trang nạp sơ đồ ghế có tệp mẫu để tải và hiển thị số ghế đã lưu khi mở lại.
+
+Để thử luồng này trên máy với database tạm (cần PostgreSQL và Redis đang chạy), dùng `npm run demo:event-flow`. Script mở `http://localhost:8091/login.html`, in ra hai tài khoản demo và mật khẩu dùng một lần trong terminal. Nhấn `Ctrl+C` để dừng server và xóa database demo; không sửa `.env` hoặc database đang dùng.
+
 - **Mô hình dữ liệu:**
   - Bảng `events`: Bổ sung `owner_id` (FK tới `users.id` với `ON DELETE RESTRICT`), `venue`, `status` (`draft`, `published`, `archived`), bỏ các cột giá và tổng số vé cũ.
   - Bảng `showtimes`: Lưu các suất diễn gắn với sự kiện (`event_id` với `ON DELETE RESTRICT`), thời điểm bắt đầu `starts_at` (`timestamptz`), tên phòng `room_name`.

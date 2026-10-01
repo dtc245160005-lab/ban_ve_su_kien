@@ -628,8 +628,16 @@ describe('T-14 Seat Map Upload & Preview UI Tests (JSDOM)', () => {
     const links = Array.from(window.document.querySelectorAll('a[href*="seat-map-upload.html"]'));
     assert.ok(links.length >= 1, 'Phải có ít nhất 1 liên kết tới sơ đồ ghế');
 
-    const targetLink = links.find((l) => l.getAttribute('href') === `/seat-map-upload.html?showtimeId=${showtimeA.id}`);
-    assert.ok(targetLink, `Phải có liên kết trỏ chính xác tới /seat-map-upload.html?showtimeId=${showtimeA.id}`);
+    const targetLink = links.find((l) => l.getAttribute('href') === `/seat-map-upload.html?showtimeId=${showtimeA.id}&eventId=${eventA.id}`);
+    assert.ok(targetLink, 'Liên kết sơ đồ ghế phải giữ mã suất diễn và sự kiện.');
     assert.equal(targetLink.textContent.trim(), 'Sơ đồ ghế');
+  });
+
+  test('11. Quay lại đúng chi tiết sự kiện sau khi nạp ghế', async () => {
+    const dom = await openPage(`/seat-map-upload.html?showtimeId=${showtimeA.id}`, { cookieJar: jarA });
+    const { window } = dom;
+    const link = window.document.getElementById('backToEventLink');
+    await waitFor(() => link.getAttribute('href') === `/organizer-events.html?id=${eventA.id}`);
+    assert.equal(link.getAttribute('href'), `/organizer-events.html?id=${eventA.id}`);
   });
 });
