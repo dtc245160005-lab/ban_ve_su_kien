@@ -21,6 +21,7 @@ Triển khai API đăng ký và form đăng ký theo yêu cầu chức năng:
 ## Chạy ứng dụng
 
 ```bash
+cd task-t07
 npm install
 npm start
 ```

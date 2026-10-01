@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const db = require("./db");
-const authMiddleware = require("./middleware/authMiddleware");
+const authMiddleware = require("../task-t07/middleware/authMiddleware");
 
 const app = express();
 const port = process.env.PORT || 8090;

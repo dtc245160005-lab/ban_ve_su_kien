@@ -1,0 +1,7 @@
+@TaskT26.Api_HostAddress = http://localhost:2026
+
+GET {{TaskT26.Api_HostAddress}}/api/seat-reservations/mine
+X-Demo-User-Id: 42
+Accept: application/json
+
+###

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2f4f1" />
+    <title>EventTicket | Chọn ghế</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="EventTicket, trang chủ">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span>EventTicket</span>
+      </a>
+      <span class="event-label">LIVE MUSIC · HALL A</span>
+      <span class="user-chip"><span class="user-dot"></span> Khách hàng #42</span>
+    </header>
+
+    <main class="page-shell">
+      <section class="page-heading" aria-labelledby="pageTitle">
+        <div>
+          <p class="eyebrow">ĐẶT CHỖ SỰ KIỆN</p>
+          <h1 id="pageTitle">Sơ đồ ghế</h1>
+        </div>
+        <p class="event-date">Thứ Bảy, 20:00 <span>·</span> Hall A</p>
+      </section>
+
+      <div class="booking-layout">
+        <section class="map-panel" aria-label="Sơ đồ và trạng thái ghế">
+          <div class="map-toolbar">
+            <span class="map-label">TẦNG TRỆT</span>
+            <div class="legend" aria-label="Chú giải trạng thái ghế">
+              <span><i class="legend-dot available"></i>Còn trống</span>
+              <span><i class="legend-dot selected"></i>Ghế của bạn</span>
+              <span><i class="legend-dot unavailable"></i>Đã có người</span>
+            </div>
+          </div>
+
+          <div class="stage" aria-hidden="true"><span>SÂN KHẤU</span></div>
+          <div id="seatMap" class="seat-map" aria-label="Sơ đồ ghế"></div>
+          <p class="map-caption">Khu vực A · Ghế tiêu chuẩn</p>
+        </section>
+
+        <aside class="summary-panel" aria-labelledby="summaryTitle">
+          <div class="summary-heading">
+            <div>
+              <p class="eyebrow">VÉ CỦA BẠN</p>
+              <h2 id="summaryTitle">Ghế đang giữ</h2>
+            </div>
+            <span id="seatCount" class="seat-count" aria-live="polite">0</span>
+          </div>
+
+          <div id="countdown" class="countdown" role="timer" aria-live="off" hidden>
+            <span class="timer-icon" aria-hidden="true">◷</span>
+            <span id="countdownText">10:00</span>
+            <span class="timer-caption">thời gian giữ chỗ</span>
+          </div>
+
+          <ul id="selectedSeatList" class="selected-seat-list" aria-live="polite"></ul>
+          <p id="emptyState" class="empty-state" hidden>Chưa có ghế nào được giữ.</p>
+
+          <div class="total-row">
+            <span>Tạm tính</span>
+            <strong id="estimatedTotal">0 ₫</strong>
+          </div>
+          <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
+          <p class="secure-note"><span aria-hidden="true">●</span> Ghế được cập nhật trực tiếp</p>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>
