@@ -26,4 +26,4 @@ ENV APP_REVISION=$APP_REVISION
 
 EXPOSE 8090
 
-CMD ["sh", "-c", "npm run migrate:latest && if [ -n \"$DEMO_ADMIN_PASSWORD\" ] || [ -n \"$DEMO_ORGANIZER_PASSWORD\" ]; then npm run seed:run; fi && npm start"]
+CMD ["sh", "-c", "npm run migrate:latest && npm start"]

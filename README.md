@@ -69,10 +69,12 @@ Nếu máy bạn đã cài PostgreSQL và Redis trực tiếp:
 ---
 
 Chạy toàn bộ stack bằng Docker: tạo `.env`, cấu hình cổng không trùng với dịch vụ
-đang chạy rồi dùng `docker compose up --build`. Lệnh khởi động trong Dockerfile và `docker-compose.yml`
-tự động chạy `npm run migrate:latest` (tạo bảng, vá cột và chèn 5 vai trò hệ thống nền tảng),
+đang chạy rồi dùng `docker compose up --build`. Lệnh khởi động trong `docker-compose.yml` (chỉ dùng
+trên máy cá nhân) chạy `npm run migrate:latest` (tạo bảng, vá cột và chèn 5 vai trò hệ thống nền tảng),
 sau đó chỉ chạy `npm run seed:run` khi biến `DEMO_*` được cấu hình rõ ràng, rồi mở server bằng `npm start`.
-Trên Render, chỉ cần deploy/chạy lại `migrate:latest` để tự động nạp vai trò hệ thống và vá cột `purpose` cho database hiện tại.
+`Dockerfile` (dùng cho Render/staging) chỉ chạy `migrate:latest` rồi `npm start`, **không bao giờ seed**:
+seed đặt lại mật khẩu tài khoản demo nên không được chạy tự động trên staging/production.
+Trên Render, chỉ cần deploy lại để `migrate:latest` tự nạp vai trò hệ thống và vá cột `purpose` cho database hiện tại.
 Đây là cấu hình development; email dùng chế độ dev.
 
 `verify` không khởi tạo database ứng dụng: nó tạo database tạm, migrate/rollback,
@@ -263,7 +265,7 @@ Bộ kiểm thử E2E kiểm tra toàn bộ 24 tiêu chí nghiệp vụ Sprint 1
   ```
 
 #### 3. Chạy với log kích hoạt email (`DEV_MAIL_FILE`):
-Khi chạy máy chủ ở chế độ dev (`MAIL_TRANSPORT=dev`), liên kết kích hoạt được ghi ra console/file. Để runner E2E tự động đọc token kích hoạt tài khoản:
+Khi chạy máy chủ ở chế độ dev (`MAIL_TRANSPORT=dev`), email chứa mã xác nhận 6 số được ghi ra console/file. Để runner E2E tự động đọc mã OTP kích hoạt tài khoản:
 - **Khởi động server có ghi file log dev mail:**
   - PowerShell: `$env:DEV_MAIL_FILE=".\dev_mail.log"; npm start`
   - Bash: `DEV_MAIL_FILE=./dev_mail.log npm start`
@@ -343,16 +345,17 @@ npm run backup
 - **Đăng ký an toàn (`POST /api/auth/register`):**
   - Nhận `email`, `password`, `full_name`. Kiểm tra định dạng dữ liệu đầu vào.
   - Tạo tài khoản với vai trò mặc định `buyer` và trạng thái `is_active = false`.
-  - Sinh mã kích hoạt ngẫu nhiên 32 bytes (base64url), lưu hash SHA-256 vào bảng `email_activation_tokens` với thời hạn 24 giờ.
+  - Sinh mã xác nhận 6 số ngẫu nhiên (`crypto.randomInt`), chỉ lưu hash SHA-256 vào bảng `email_activation_tokens`, hiệu lực `ACTIVATION_CODE_TTL_SECONDS` (mặc định 600 giây).
   - **Chống lộ thông tin:** Luôn trả về HTTP 202 cùng thông báo chung `"Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư."` bất kể email mới hay đã tồn tại (đồng thời chạy dummy hash để cân bằng thời gian phản hồi).
   - **Xử lý đồng thời:** Xử lý race condition an toàn qua ràng buộc unique, trả về 202 và không gây lỗi 500 khi có nhiều request đăng ký cùng lúc.
 - **Kích hoạt tài khoản (`POST /api/auth/activate`):**
-  - Trang `public/activate.html` đọc token từ URL (`#token=...` hoặc `?token=...`), tự động xóa token khỏi thanh địa chỉ và gọi API `POST /api/auth/activate`.
+  - Trang `public/activate.html` cho người dùng nhập email và mã 6 số, gọi `POST /api/auth/activate` với `{ email, code }`.
   - Sử dụng một câu lệnh SQL atomic duy nhất (`UPDATE ... RETURNING`) để ngăn chặn tuyệt đối tình trạng kích hoạt trùng lặp.
-  - Trả về HTTP 200 khi thành công, HTTP 409 khi token đã dùng, HTTP 410 khi token hết hạn, HTTP 400 khi token không hợp lệ.
+  - Trả về HTTP 200 khi thành công; 400 `CODE_INVALID` khi mã sai; 429 `CODE_LOCKED` khi sai quá `ACTIVATION_CODE_MAX_ATTEMPTS` lần (mặc định 5, phải yêu cầu mã mới); 409 khi mã đã dùng hoặc tài khoản đã kích hoạt; 410 `CODE_EXPIRED` khi mã hết hạn.
+  - Liên kết kích hoạt dạng token cũ (`{ token }`) vẫn được chấp nhận để tương thích ngược: 409 khi token đã dùng, 410 khi hết hạn, 400 khi không hợp lệ.
 - **Gửi lại email kích hoạt (`POST /api/auth/resend-activation`):**
   - Giới hạn tối đa 5 lần gửi lại mỗi giờ cho một email (quản lý qua Redis).
-  - Vô hiệu hoá các token cũ còn hạn của người dùng trước khi sinh token mới.
+  - Vô hiệu hoá các mã cũ còn hạn của người dùng trước khi sinh mã mới.
   - Luôn trả về HTTP 202 với thông báo chung.
 - **Dịch vụ Email (`services/emailService.js`):**
   - Môi trường dev/test: In nội dung email kèm mã xác nhận 6 số ra console dạng khối `[DEV MAIL]`.
