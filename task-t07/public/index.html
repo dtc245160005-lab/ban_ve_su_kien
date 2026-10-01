@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chọn Ghế</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 20px;
+        color: #222;
+      }
+      .auth-fields {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .auth-fields label {
+        display: grid;
+        gap: 4px;
+      }
+      .auth-fields input {
+        min-width: 220px;
+        padding: 8px;
+      }
+      .seat-map {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .seat {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        background: #ddd;
+        cursor: pointer;
+        border: 0;
+        border-radius: 4px;
+      }
+      .seat.selected {
+        background: #4caf50;
+        color: white;
+      }
+      .seat.held {
+        background: #ffc107;
+        color: #222;
+      }
+      .seat:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+      #selectionPanel {
+        margin-top: 24px;
+      }
+      #selectedSeatList {
+        padding-left: 20px;
+      }
+      .selected-seat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 8px 0;
+      }
+      .remove-seat {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      #estimatedTotal {
+        font-weight: bold;
+      }
+      #countdown {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 20px;
+        color: #d32f2f;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chọn Ghế</h1>
+    <div class="auth-fields" aria-label="Thông tin tài khoản">
+      <label
+        >Email
+        <input id="authEmail" type="email" autocomplete="username" required />
+      </label>
+      <label
+        >Mật khẩu
+        <input
+          id="authPassword"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+      </label>
+    </div>
+    <div class="seat-map" aria-label="Sơ đồ ghế">
+      <button class="seat" type="button" data-id="A1" data-price="100000">
+        A1
+      </button>
+      <button class="seat" type="button" data-id="A2" data-price="100000">
+        A2
+      </button>
+      <button class="seat" type="button" data-id="A3" data-price="100000">
+        A3
+      </button>
+    </div>
+
+    <button id="holdBtn" style="margin-top: 10px; padding: 10px 20px">
+      Giữ Chỗ
+    </button>
+
+    <section id="selectionPanel" aria-live="polite">
+      <h2>Ghế đã chọn</h2>
+      <ul id="selectedSeatList"></ul>
+      <p>Tổng tiền tạm tính: <span id="estimatedTotal">0 ₫</span></p>
+    </section>
+
+    <div id="countdown" hidden></div>
+
+    <script>
+      const API_URL = "/api/seat-holds";
+      const selectedSeats = new Set();
+      const heldSeats = new Set();
+      const pendingUnholds = new Set();
+      let serverTimeOffset = 0; // Độ lệch giờ: serverTime - localTime
+      let holdExpiresAt = null;
+      let countdownInterval = null;
+
+      function getAuthorizationHeader() {
+        const email = document.getElementById("authEmail").value.trim();
+        const password = document.getElementById("authPassword").value;
+        if (!email || !password) {
+          alert("Vui lòng nhập email và mật khẩu");
+          return null;
+        }
+
+        const credentials = new TextEncoder().encode(`${email}:${password}`);
+        const binaryCredentials = Array.from(credentials, (byte) =>
+          String.fromCharCode(byte),
+        ).join("");
+        return `Basic ${btoa(binaryCredentials)}`;
+      }
+
+      // Tính độ lệch giờ khi tải trang (có thể gọi API lấy giờ server)
+      // Ở đây giả định API trả về Date ở header, nhưng ta làm đơn giản
+      // Hoặc tạm gán offset = 0 nếu server & client chung máy
+      // Nếu muốn chuẩn: GET /api/time
+
+      async function fetchServerTime() {
+        try {
+          const res = await fetch("/api/time");
+          const data = await res.json();
+          const localTime = Date.now();
+          const serverTime = new Date(data.server_time).getTime();
+          serverTimeOffset = serverTime - localTime;
+        } catch (e) {
+          console.error("Không lấy được giờ server", e);
+        }
+      }
+
+      fetchServerTime();
+
+      function renderSelection() {
+        const list = document.getElementById("selectedSeatList");
+        list.replaceChildren();
+
+        selectedSeats.forEach((id) => {
+          const item = document.createElement("li");
+          item.className = "selected-seat";
+          const status = heldSeats.has(id) ? "Đang giữ" : "Chưa giữ";
+          const label = document.createElement("span");
+          label.textContent = `${id} · ${status}`;
+
+          const removeButton = document.createElement("button");
+          removeButton.className = "remove-seat";
+          removeButton.type = "button";
+          removeButton.textContent = "x";
+          removeButton.setAttribute("aria-label", `Bỏ chọn ghế ${id}`);
+          removeButton.disabled = pendingUnholds.has(id);
+          removeButton.addEventListener("click", () => {
+            if (heldSeats.has(id)) {
+              unholdSeat(id);
+            } else {
+              selectedSeats.delete(id);
+              renderSelection();
+            }
+          });
+
+          item.append(label, removeButton);
+          list.append(item);
+        });
+
+        const total = [...selectedSeats].reduce((sum, id) => {
+          const seat = document.querySelector(
+            `.seat[data-id="${CSS.escape(id)}"]`,
+          );
+          return sum + Number(seat?.dataset.price || 0);
+        }, 0);
+        document.getElementById("estimatedTotal").textContent =
+          new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
+            maximumFractionDigits: 0,
+          }).format(total);
+      }
+
+      async function unholdSeat(id) {
+        if (!heldSeats.has(id) || pendingUnholds.has(id)) return;
+
+        const authorization = getAuthorizationHeader();
+        if (!authorization) return;
+
+        pendingUnholds.add(id);
+        const seat = document.querySelector(
+          `.seat[data-id="${CSS.escape(id)}"]`,
+        );
+        if (seat) seat.disabled = true;
+        renderSelection();
+
+        try {
+          const res = await fetch(`${API_URL}/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: { Authorization: authorization },
+          });
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            alert(data.message || "Không thể hủy giữ chỗ");
+            return;
+          }
+
+          heldSeats.delete(id);
+          selectedSeats.delete(id);
+          if (seat) seat.classList.remove("selected", "held");
+          if (heldSeats.size === 0) stopCountdown();
+        } catch (err) {
+          console.error(err);
+          alert("Không thể kết nối để hủy giữ chỗ");
+        } finally {
+          pendingUnholds.delete(id);
+          if (seat) seat.disabled = false;
+          renderSelection();
+        }
+      }
+
+      document.querySelectorAll(".seat").forEach((el) => {
+        el.addEventListener("click", () => {
+          const id = el.getAttribute("data-id");
+          if (heldSeats.has(id)) {
+            unholdSeat(id);
+          } else if (selectedSeats.has(id)) {
+            selectedSeats.delete(id);
+            el.classList.remove("selected");
+          } else {
+            selectedSeats.add(id);
+            el.classList.add("selected");
+          }
+          renderSelection();
+        });
+      });
+
+      document.getElementById("holdBtn").addEventListener("click", async () => {
+        if (selectedSeats.size === 0) return alert("Vui lòng chọn ghế");
+        const authorization = getAuthorizationHeader();
+        if (!authorization) return;
+
+        try {
+          const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: authorization,
+            },
+            body: JSON.stringify({ seat_ids: [...selectedSeats] }),
+          });
+
+          const data = await res.json();
+
+          if (res.status === 409) {
+            alert(data.message); // Ghế vừa có người chọn
+            return;
+          }
+
+          if (res.ok && data.success) {
+            selectedSeats.forEach((id) => {
+              heldSeats.add(id);
+              const seat = document.querySelector(
+                `.seat[data-id="${CSS.escape(id)}"]`,
+              );
+              seat?.classList.add("held");
+            });
+            holdExpiresAt = new Date(data.data.expires_at).getTime();
+            startCountdown();
+            renderSelection();
+          } else {
+            alert("Lỗi: " + data.message);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      function stopCountdown() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = null;
+        holdExpiresAt = null;
+        const countdown = document.getElementById("countdown");
+        countdown.hidden = true;
+        countdown.textContent = "";
+      }
+
+      function startCountdown() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        const countdown = document.getElementById("countdown");
+        countdown.hidden = false;
+
+        countdownInterval = setInterval(() => {
+          const currentLocalTime = Date.now();
+          // Tính giờ server hiện tại bằng local time + offset
+          const currentServerTime = currentLocalTime + serverTimeOffset;
+
+          const timeLeft = holdExpiresAt - currentServerTime;
+
+          if (timeLeft <= 0) {
+            document
+              .querySelectorAll(".seat")
+              .forEach((el) => el.classList.remove("selected", "held"));
+            selectedSeats.clear();
+            heldSeats.clear();
+            stopCountdown();
+            renderSelection();
+          } else {
+            const minutes = Math.floor(timeLeft / 60000);
+            const seconds = Math.floor((timeLeft % 60000) / 1000);
+            countdown.innerText = `Thời gian giữ chỗ còn lại: ${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+          }
+        }, 1000);
+      }
+
+      renderSelection();
+    </script>
+  </body>
+</html>

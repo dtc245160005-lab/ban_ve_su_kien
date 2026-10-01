@@ -1,0 +1,13 @@
+{
+  "name": "eventticket-task-t26",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone seat deselection UI and T-25 API integration",
+  "scripts": {
+    "start": "dotnet run --project TaskT25.Api/TaskT25.Api.csproj --launch-profile http",
+    "dev": "dotnet watch --project TaskT25.Api/TaskT25.Api.csproj run --launch-profile http",
+    "test": "dotnet test TaskT25.slnx",
+    "test:java": "mvn -f java-backend/pom.xml test",
+    "build:java": "mvn -f java-backend/pom.xml package"
+  }
+}
