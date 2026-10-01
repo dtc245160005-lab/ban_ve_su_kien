@@ -4,7 +4,6 @@ const {
   DRAFT,
   ON_SALE,
   CLOSED,
-  showtimeStatusService,
   isValidTransition,
   assertCanManage,
   changeShowtimeStatus,
