@@ -53,6 +53,22 @@ if (form) {
       ? 'Mật khẩu xác nhận không khớp.' : '';
     updateRegisterState();
   }));
+  if (passwordInput) {
+    passwordInput.addEventListener('blur', () => {
+      const validation = typeof validateRegisterForm === 'function'
+        ? validateRegisterForm({ password: passwordInput.value })
+        : { errors: {} };
+      if (passwordInput.value.length < 8) {
+        if (passwordError) {
+          passwordError.textContent = validation.errors.password || 'Mật khẩu phải từ 8 đến 128 ký tự.';
+        }
+      } else if (!validation.errors.password) {
+        if (passwordError) {
+          passwordError.textContent = '';
+        }
+      }
+    });
+  }
   form.querySelectorAll('.password-toggle').forEach((button) => button.addEventListener('click', () => {
     const input = document.getElementById(button.dataset.target);
     const visible = input.type === 'password';

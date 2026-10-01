@@ -52,6 +52,19 @@ async function checkSchema(client) {
     });
   }
 
+  // Kiểm tra bảng user_roles (#21)
+  if (existingTables.has('user_roles')) {
+    items.push({ id: 'table_user_roles', description: 'Bảng user_roles: tồn tại', status: 'OK' });
+  } else {
+    allOk = false;
+    items.push({
+      id: 'table_user_roles',
+      description: 'Bảng user_roles: chưa tồn tại',
+      status: 'LỖI',
+      hint: 'Chạy npm run migrate:latest',
+    });
+  }
+
   // 2. Kiểm tra các cột bắt buộc trong information_schema.columns
   const colsRes = await executeQuery(client, `
     SELECT table_name, column_name
@@ -93,7 +106,7 @@ async function checkSchema(client) {
     }
   }
 
-  // email_activation_tokens(purpose, token_hash, used_at)
+  // email_activation_tokens(purpose, token_hash, used_at, failed_attempts, locked_until)
   if (!existingTables.has('email_activation_tokens')) {
     allOk = false;
     items.push({
@@ -104,12 +117,12 @@ async function checkSchema(client) {
     });
   } else {
     const tokenCols = tableColumns.get('email_activation_tokens') || new Set();
-    const requiredTokenCols = ['purpose', 'token_hash', 'used_at'];
+    const requiredTokenCols = ['purpose', 'token_hash', 'used_at', 'failed_attempts', 'locked_until'];
     const missingTokenCols = requiredTokenCols.filter((c) => !tokenCols.has(c));
     if (missingTokenCols.length === 0) {
       items.push({
         id: 'cols_email_activation_tokens',
-        description: 'email_activation_tokens: có đủ cột (purpose, token_hash, used_at)',
+        description: 'email_activation_tokens: có đủ cột (purpose, token_hash, used_at, failed_attempts, locked_until)',
         status: 'OK',
       });
     } else {

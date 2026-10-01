@@ -9,4 +9,4 @@ backup_*.sql
 backups/
 .active-color
 Claude outputs/
-
+*.rdb

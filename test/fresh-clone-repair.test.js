@@ -35,6 +35,7 @@ describe('Fresh Clone & Schema Repair Tests', () => {
               { table_name: 'showtimes' },
               { table_name: 'seats' },
               { table_name: 'seat_categories' },
+              { table_name: 'user_roles' },
               { table_name: 'roles' },
             ],
           };
@@ -46,6 +47,8 @@ describe('Fresh Clone & Schema Repair Tests', () => {
               // Thiếu is_active ở users
               { table_name: 'email_activation_tokens', column_name: 'token_hash' },
               { table_name: 'email_activation_tokens', column_name: 'used_at' },
+              { table_name: 'email_activation_tokens', column_name: 'failed_attempts' },
+              { table_name: 'email_activation_tokens', column_name: 'locked_until' },
               // Thiếu purpose ở email_activation_tokens
               { table_name: 'showtimes', column_name: 'starts_at' },
             ],

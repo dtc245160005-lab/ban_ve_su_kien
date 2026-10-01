@@ -24,7 +24,12 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-const BASE_URL = (cliBaseUrl || process.env.BASE_URL || 'http://localhost:8090').replace(/\/+$/, '');
+const BASE_URL = (
+  cliBaseUrl ||
+  process.env.BASE_URL ||
+  process.env.APP_BASE_URL ||
+  (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:8090')
+).replace(/\/+$/, '');
 let DEV_MAIL_FILE = cliMailFile || process.env.DEV_MAIL_FILE || null;
 
 // Tự động tìm dev mail log nếu chạy local mà chưa cấu hình biến môi trường
@@ -39,6 +44,15 @@ if (!DEV_MAIL_FILE && (BASE_URL.includes('localhost') || BASE_URL.includes('127.
 }
 
 const IS_LOCKOUT = cliLockout || process.env.E2E_LOCKOUT === '1' || process.env.E2E_LOCKOUT === 'true';
+
+const ADMIN_EMAIL =
+  process.env.E2E_ADMIN_EMAIL ||
+  process.env.DEMO_ADMIN_EMAIL ||
+  'admin@example.test';
+const ADMIN_PASSWORD =
+  process.env.E2E_ADMIN_PASSWORD ||
+  process.env.DEMO_ADMIN_PASSWORD ||
+  'DemoAdminLocal@2026_SecureSecretP@ss99!';
 
 const ORGANIZER_EMAIL =
   process.env.E2E_ORGANIZER_EMAIL ||
@@ -77,24 +91,30 @@ function getCookieFromHeaders(headers) {
   return match ? match[1] : null;
 }
 
-function extractActivationToken(email) {
-  if (!DEV_MAIL_FILE || !fs.existsSync(DEV_MAIL_FILE)) return null;
+function extractActivationCredentials(email) {
+  if (!DEV_MAIL_FILE || !fs.existsSync(DEV_MAIL_FILE)) return { code: null, token: null };
   try {
     const content = fs.readFileSync(DEV_MAIL_FILE, 'utf8');
     const blocks = content.split('==================== [DEV MAIL] ====================');
     for (let i = blocks.length - 1; i >= 0; i--) {
       const block = blocks[i];
       if (block.includes(`To: ${email}`)) {
+        const codeMatch =
+          block.match(/Mã xác nhận tài khoản của bạn là:\s*(\d{6})/) ||
+          block.match(/\b(\d{6})\b/);
         const tokenMatch =
           block.match(/[?&]token=([a-zA-Z0-9_-]+)/) ||
           block.match(/#token=([a-zA-Z0-9_-]+)/);
-        if (tokenMatch) return tokenMatch[1];
+        return {
+          code: codeMatch ? codeMatch[1] : null,
+          token: tokenMatch ? tokenMatch[1] : null,
+        };
       }
     }
   } catch (err) {
     console.error('Lỗi khi đọc DEV_MAIL_FILE:', err.message);
   }
-  return null;
+  return { code: null, token: null };
 }
 
 async function request(urlPath, options = {}) {
@@ -268,63 +288,70 @@ async function run() {
     reportFail('L2', 'Đăng nhập trước khi kích hoạt, mật khẩu sai', 'ERR', 401, err.message);
   }
 
-  // Trích xuất activation token từ DEV_MAIL_FILE nếu có
-  let activationToken = extractActivationToken(testEmail);
+  // Trích xuất activation code / token từ DEV_MAIL_FILE nếu có
+  const { code: activationCode, token: activationToken } = extractActivationCredentials(testEmail);
+  const hasActivationCreds = Boolean(activationCode || activationToken);
 
-  // A1: Kích hoạt bằng token -> 200
-  if (activationToken) {
+  // A1: Kích hoạt bằng mã OTP -> 200
+  if (hasActivationCreds) {
     try {
+      const body = activationCode
+        ? { email: testEmail, code: activationCode }
+        : { token: activationToken };
       const resA1 = await request('/api/auth/activate', {
         method: 'POST',
-        body: { token: activationToken },
+        body,
       });
       if (resA1.status === 200) {
-        reportPass('A1', 'Kích hoạt bằng token', resA1.status, 200);
+        reportPass('A1', 'Kích hoạt tài khoản bằng mã OTP', resA1.status, 200);
       } else {
-        reportFail('A1', 'Kích hoạt bằng token', resA1.status, 200, JSON.stringify(resA1.data));
+        reportFail('A1', 'Kích hoạt tài khoản bằng mã OTP', resA1.status, 200, JSON.stringify(resA1.data));
       }
     } catch (err) {
-      reportFail('A1', 'Kích hoạt bằng token', 'ERR', 200, err.message);
+      reportFail('A1', 'Kích hoạt tài khoản bằng mã OTP', 'ERR', 200, err.message);
     }
   } else {
-    reportSkip('A1', 'Kích hoạt bằng token', 'cần hộp thư');
+    reportSkip('A1', 'Kích hoạt tài khoản bằng mã OTP', 'cần hộp thư');
   }
 
-  // A2: Kích hoạt lại cùng token -> 409
-  if (activationToken) {
+  // A2: Kích hoạt lại cùng mã OTP -> 409
+  if (hasActivationCreds) {
     try {
+      const body = activationCode
+        ? { email: testEmail, code: activationCode }
+        : { token: activationToken };
       const resA2 = await request('/api/auth/activate', {
         method: 'POST',
-        body: { token: activationToken },
+        body,
       });
       if (resA2.status === 409) {
-        reportPass('A2', 'Kích hoạt lại cùng token', resA2.status, 409);
+        reportPass('A2', 'Kích hoạt lại cùng mã OTP', resA2.status, 409);
       } else {
-        reportFail('A2', 'Kích hoạt lại cùng token', resA2.status, 409, JSON.stringify(resA2.data));
+        reportFail('A2', 'Kích hoạt lại cùng mã OTP', resA2.status, 409, JSON.stringify(resA2.data));
       }
     } catch (err) {
-      reportFail('A2', 'Kích hoạt lại cùng token', 'ERR', 409, err.message);
+      reportFail('A2', 'Kích hoạt lại cùng mã OTP', 'ERR', 409, err.message);
     }
   } else {
-    reportSkip('A2', 'Kích hoạt lại cùng token', 'cần hộp thư');
+    reportSkip('A2', 'Kích hoạt lại cùng mã OTP', 'cần hộp thư');
   }
 
-  // A3: Token rác -> 400
+  // A3: Mã OTP sai -> 400
   try {
     const resA3 = await request('/api/auth/activate', {
       method: 'POST',
-      body: { token: 'invalid_garbage_token_12345' },
+      body: { email: `wrong_otp_${timestamp}@example.test`, code: '000000' },
     });
     if (resA3.status === 400) {
-      reportPass('A3', 'Token rác', resA3.status, 400);
+      reportPass('A3', 'Mã OTP sai', resA3.status, 400);
     } else {
-      reportFail('A3', 'Token rác', resA3.status, 400);
+      reportFail('A3', 'Mã OTP sai', resA3.status, 400, JSON.stringify(resA3.data));
     }
   } catch (err) {
-    reportFail('A3', 'Token rác', 'ERR', 400, err.message);
+    reportFail('A3', 'Mã OTP sai', 'ERR', 400, err.message);
   }
 
-  // A4: Gửi lại liên kết -> 202 (body chung); email không tồn tại -> 202 giống hệt
+  // A4: Gửi lại mã kích hoạt -> 202 (body chung); email không tồn tại -> 202 giống hệt
   try {
     const resA4_1 = await request('/api/auth/resend-activation', {
       method: 'POST',
@@ -336,17 +363,17 @@ async function run() {
     });
     const bodiesMatch = JSON.stringify(resA4_1.data) === JSON.stringify(resA4_2.data);
     if (resA4_1.status === 202 && resA4_2.status === 202 && bodiesMatch) {
-      reportPass('A4', 'Gửi lại liên kết kích hoạt', 202, 202);
+      reportPass('A4', 'Gửi lại mã kích hoạt', 202, 202);
     } else {
-      reportFail('A4', 'Gửi lại liên kết kích hoạt', resA4_1.status, 202, 'Phản hồi không đồng nhất');
+      reportFail('A4', 'Gửi lại mã kích hoạt', resA4_1.status, 202, 'Phản hồi không đồng nhất');
     }
   } catch (err) {
-    reportFail('A4', 'Gửi lại liên kết kích hoạt', 'ERR', 202, err.message);
+    reportFail('A4', 'Gửi lại mã kích hoạt', 'ERR', 202, err.message);
   }
 
   // L3: Đăng nhập sau khi kích hoạt -> 200, có cookie HttpOnly
   let buyerCookie = null;
-  if (activationToken) {
+  if (hasActivationCreds) {
     try {
       const resL3 = await request('/api/auth/login', {
         method: 'POST',
@@ -427,6 +454,69 @@ async function run() {
     }
   } catch (err) {
     reportFail('P3', 'GET /api/khong-ton-tai', 'ERR', 403, err.message);
+  }
+
+  // W1: Buyer POST /api/workspaces/admin/staff -> 403 (#21)
+  if (buyerCookie) {
+    try {
+      const resW1 = await request('/api/workspaces/admin/staff', {
+        method: 'POST',
+        cookie: buyerCookie,
+        body: {
+          email: `checker.${timestamp}.${randomSuffix}@example.test`,
+          full_name: 'Nhân viên soát vé',
+          password: 'Password@123456',
+          roles: ['checker'],
+        },
+      });
+      if (resW1.status === 403) {
+        reportPass('W1', 'Buyer POST /api/workspaces/admin/staff', resW1.status, 403);
+      } else {
+        reportFail('W1', 'Buyer POST /api/workspaces/admin/staff', resW1.status, 403);
+      }
+    } catch (err) {
+      reportFail('W1', 'Buyer POST /api/workspaces/admin/staff', 'ERR', 403, err.message);
+    }
+  } else {
+    reportSkip('W1', 'Buyer POST /api/workspaces/admin/staff', 'cần đăng nhập buyer');
+  }
+
+  // W2: Admin đăng nhập và gọi POST /api/workspaces/admin/staff -> 201 (#21)
+  let adminCookie = null;
+  try {
+    const resAdminLogin = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+    });
+    if (resAdminLogin.status === 200 && resAdminLogin.cookie) {
+      adminCookie = resAdminLogin.cookie;
+    }
+  } catch (err) {
+    console.error('Lỗi khi đăng nhập Admin:', err.message);
+  }
+
+  if (adminCookie) {
+    try {
+      const resW2 = await request('/api/workspaces/admin/staff', {
+        method: 'POST',
+        cookie: adminCookie,
+        body: {
+          email: `checker.${timestamp}.${randomSuffix}@example.test`,
+          full_name: 'Nhân viên soát vé',
+          password: 'Password@123456',
+          roles: ['checker'],
+        },
+      });
+      if (resW2.status === 201 && Array.isArray(resW2.data?.data?.roles) && resW2.data.data.roles.includes('checker')) {
+        reportPass('W2', 'Admin POST /api/workspaces/admin/staff tạo tài khoản nhân viên', resW2.status, 201);
+      } else {
+        reportFail('W2', 'Admin POST /api/workspaces/admin/staff tạo tài khoản nhân viên', resW2.status, 201, JSON.stringify(resW2.data));
+      }
+    } catch (err) {
+      reportFail('W2', 'Admin POST /api/workspaces/admin/staff tạo tài khoản nhân viên', 'ERR', 201, err.message);
+    }
+  } else {
+    reportFail('W2', 'Admin POST /api/workspaces/admin/staff tạo tài khoản nhân viên', 'NO_AUTH', 201, 'Không thể đăng nhập bằng tài khoản Admin');
   }
 
   // Đăng nhập bằng tài khoản Organizer để chạy E1 - E5
