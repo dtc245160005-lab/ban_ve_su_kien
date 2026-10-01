@@ -246,9 +246,23 @@ function createOrganizerEventsRouter(options = {}) {
     }
   });
 
+  // API POST đổi trạng thái suất diễn
+  secure(router, 'post', '/showtimes/:id/status', ['organizer', 'admin'], async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const result = await changeShowtimeStatus(id, status, req.user);
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err.statusCode) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      return next(err);
+    }
+  });
+
   return router;
 }
-
 const defaultPublicEventsRouter = createPublicEventsRouter();
 defaultPublicEventsRouter.createPublicEventsRouter = createPublicEventsRouter;
 defaultPublicEventsRouter.createOrganizerEventsRouter = createOrganizerEventsRouter;
