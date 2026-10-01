@@ -464,4 +464,37 @@ Luồng mở bán: tạo sự kiện (bản nháp) → thêm suất diễn trong
 
 - Trên Render dùng Docker, container chạy `npm run migrate:latest` trước `npm start`; không seed hay rollback dữ liệu staging. Hãy kiểm tra backup và CI trước khi merge migration. `npm run verify` vẫn chỉ dùng database tạm và rollback database tạm.
 
+---
+
+## Trang công khai (T-17, T-18 / S-08)
+
+Hệ thống cung cấp danh mục công khai các suất diễn đang mở bán và trang chi tiết suất diễn dành cho khách vãng lai và người mua vé:
+
+### 1. API Danh Mục Công Khai
+- `GET /api/events/showtimes?cursor=&limit=`:
+  - Trả về danh sách suất diễn thỏa mãn đồng thời: `showtimes.status = 'on_sale'`, `events.status = 'published'` và `starts_at > now()`.
+  - Sắp xếp tăng dần theo `(starts_at ASC, id ASC)`.
+  - Phân trang theo con trỏ (keyset pagination) qua biểu thức so sánh bộ tuple `(starts_at, id) > (:cursorStartsAt, :cursorId)`, không dùng `OFFSET`. `cursor` được mã hóa `base64url` từ chuỗi JSON `{ s: starts_at ISO, i: id }`. Khi con trỏ hỏng hoặc không đúng định dạng, API trả về lỗi `400`.
+  - `limit` mặc định là `20`, tối đa `50` (nếu vượt quá 50 sẽ tự động kẹp về 50).
+  - Định dạng dữ liệu trả về: `{ success: true, data: { items, nextCursor }, items, nextCursor }`. Mỗi phần tử chỉ gồm các trường công khai: `showtimeId`, `eventId`, `title`, `description`, `venue`, `roomName`, `startsAt` (ISO UTC), `minPrice: null`, `maxPrice: null` (tạm thời để `null` cho tới Sprint 3 / T-34). Tuyệt đối không để lộ `owner_id`, `status` nội bộ hay metadata quản trị.
+  - Bộ nhớ đệm Redis: Cache kết quả 30 giây theo khóa `catalog:onsale:v1:<cursor|first>:<limit>`. Nếu Redis gặp sự cố, hệ thống tự động bỏ qua cache và truy vấn trực tiếp cơ sở dữ liệu để trả kết quả `200` (không làm gián đoạn dịch vụ với lỗi `500`).
+- `GET /api/events/showtimes/:id`:
+  - Trả về thông tin chi tiết của một suất diễn cùng số lượng ghế (`seatCount`) và cờ `onSale` (`true` hoặc `false`).
+  - Trả về `404` nếu suất diễn không tồn tại hoặc sự kiện cha chưa `published`.
+  - Suất diễn có trạng thái `draft` hoặc `closed` thuộc sự kiện đã `published` vẫn trả về `200` kèm `onSale: false` để giao diện hiển thị thông báo phù hợp.
+
+### 2. Giao Diện Công Khai Phía Client
+- **Trang chủ (`public/home.html` + `public/home.js`):**
+  - Hiển thị danh sách các suất diễn đang mở bán vé gọi từ `GET /api/events/showtimes`.
+  - Mỗi thẻ hiển thị: tên sự kiện, thời gian biểu diễn theo múi giờ Việt Nam (`vi-VN`, `Asia/Ho_Chi_Minh`), địa điểm, phòng, thông tin khoảng giá ("Giá sẽ cập nhật") và liên kết tới trang chi tiết `/showtime.html?id=<showtimeId>`.
+  - Hỗ trợ cuộn vô tận tự động tải trang kế tiếp bằng `IntersectionObserver` kèm con trỏ `nextCursor`, cùng nút "Tải thêm" dự phòng.
+  - Toàn bộ nội dung dữ liệu người dùng được dựng an toàn qua thuộc tính `textContent`, ngăn ngừa tuyệt đối nguy cơ tấn công XSS.
+- **Trang chi tiết suất diễn (`public/showtime.html` + `public/showtime.js`):**
+  - Không yêu cầu đăng nhập khi truy cập.
+  - Hiển thị đầy đủ tên sự kiện, mô tả, thời gian biểu diễn, địa điểm, phòng, khoảng giá và nút "Chọn ghế".
+  - Khi `onSale: false`, hiển thị thông báo "Suất diễn này hiện không mở bán" và ẩn nút "Chọn ghế".
+  - Khi người dùng bấm "Chọn ghế": hệ thống điều hướng tới `/seat-map.html?showtime=<id>`. Nếu người dùng chưa đăng nhập (`GET /api/auth/session` trả về `401`), hệ thống tự động chuyển hướng đến `/login.html?next=<encodeURIComponent('/seat-map.html?showtime=<id>')>`.
+  - Tích hợp các thẻ meta mạng xã hội OpenGraph (`og:title`, `og:description`, `og:type`, `og:url` và `meta description`) trong `<head>`, tự động cập nhật linh hoạt sau khi tải xong thông tin suất diễn.
+  - Tối ưu trải nghiệm: người dùng từ trang chủ tới trang chọn ghế chỉ qua tối đa 2 lần bấm.
+
 

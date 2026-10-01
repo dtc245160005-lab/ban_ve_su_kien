@@ -12,16 +12,22 @@
       <section class="home-hero">
         <span class="eyebrow">SỰ KIỆN ĐÁNG CHỜ ĐỢI</span>
         <h1>Tìm sự kiện yêu thích, bắt đầu từ đây.</h1>
-        <p>Khám phá những sự kiện đã được ban tổ chức công bố. Đăng ký để theo dõi và xem sơ đồ ghế của từng suất diễn.</p>
+        <p>Xem các suất diễn đang mở bán, chọn suất phù hợp rồi vào sơ đồ ghế để chọn chỗ ngồi.</p>
         <div class="actions-row">
-          <a class="primary-btn small-btn" href="#events">Khám phá sự kiện</a>
+          <a class="primary-btn small-btn" href="#events">Xem suất đang mở bán</a>
           <a class="secondary-btn small-btn" href="/register.html">Tạo tài khoản</a>
         </div>
       </section>
       <section id="events" class="home-events" aria-labelledby="homeEventsTitle">
-        <div class="section-heading"><div><span class="eyebrow">KHÁM PHÁ</span><h2 id="homeEventsTitle">Sự kiện đã công bố</h2></div></div>
-        <div id="publicEventMessage" class="message" role="status">Đang tải sự kiện...</div>
-        <div id="publicEventList" class="public-event-grid"></div>
+        <div class="section-heading"><div><span class="eyebrow">ĐANG MỞ BÁN</span><h2 id="homeEventsTitle">Suất diễn đang mở bán</h2></div></div>
+        <div id="catalogMessage" class="message error" role="status" style="display: none;"></div>
+        <div id="showtimesContainer" class="public-event-grid"></div>
+        <div id="loadingIndicator" class="message" role="status" style="display: none;">Đang tải danh sách suất diễn...</div>
+        <div id="emptyNotice" class="message" style="display: none;">Hiện chưa có suất diễn nào đang mở bán. Hãy quay lại sau.</div>
+        <div class="actions-row" style="justify-content: center;">
+          <button id="loadMoreBtn" type="button" class="secondary-btn small-btn" style="display: none;">Tải thêm</button>
+        </div>
+        <div id="infiniteScrollSentinel" style="height: 20px;" aria-hidden="true"></div>
       </section>
       <section id="about" class="home-info" aria-labelledby="aboutTitle">
         <span class="eyebrow">VỀ CHÚNG TÔI</span>
