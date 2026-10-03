@@ -9,13 +9,29 @@ class AppError extends Error {
   }
 }
 
+// Giới hạn kiểu integer của PostgreSQL; id lớn hơn sẽ làm truy vấn lỗi 500.
+const MAX_DB_INTEGER = 2147483647;
+const CURSOR_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function isDbId(value) {
+  return Number.isInteger(value) && value > 0 && value <= MAX_DB_INTEGER;
+}
+
 function parseCursor(cursor) {
-  if (!cursor || typeof cursor !== 'string' || cursor.trim() === '') {
+  if (cursor === undefined || cursor === null || cursor === '') {
     return null;
   }
 
   try {
-    const raw = Buffer.from(cursor, 'base64url').toString('utf8');
+    // Buffer.from bỏ qua ký tự lạ, nên phải kiểm tra bảng chữ base64url và mã hoá lại để so khớp.
+    if (typeof cursor !== 'string' || !CURSOR_PATTERN.test(cursor)) {
+      throw new Error();
+    }
+    const buffer = Buffer.from(cursor, 'base64url');
+    if (buffer.toString('base64url') !== cursor) {
+      throw new Error();
+    }
+    const raw = buffer.toString('utf8');
     const parsed = JSON.parse(raw);
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -31,8 +47,8 @@ function parseCursor(cursor) {
       throw new Error();
     }
 
-    const id = Number(parsed.i);
-    if (!Number.isInteger(id) || id <= 0) {
+    const id = parsed.i;
+    if (!isDbId(id)) {
       throw new Error();
     }
 
@@ -49,6 +65,10 @@ function createPublicCatalogService(options = {}) {
   const db = options.db || defaultDb;
   // If redis is explicitly passed (even null or mock), use it; otherwise default to defaultRedisClient
   const redis = options.redis !== undefined ? options.redis : defaultRedisClient;
+  // Dùng chung tiền tố khoá với redisAuthStore để các môi trường chung Redis không trộn cache.
+  const keyPrefix = options.keyPrefix !== undefined
+    ? options.keyPrefix
+    : process.env.REDIS_KEY_PREFIX !== undefined ? process.env.REDIS_KEY_PREFIX : 'bvsk:';
 
   async function listOnSaleShowtimes({ cursor, limit } = {}) {
     const cursorData = parseCursor(cursor);
@@ -61,8 +81,8 @@ function createPublicCatalogService(options = {}) {
       }
     }
 
-    const cacheCursor = cursor && typeof cursor === 'string' && cursor.trim() ? cursor.trim() : 'first';
-    const cacheKey = `catalog:onsale:v1:${cacheCursor}:${parsedLimit}`;
+    const cacheCursor = cursorData ? cursor : 'first';
+    const cacheKey = `${keyPrefix}catalog:onsale:v1:${cacheCursor}:${parsedLimit}`;
 
     if (redis) {
       try {
@@ -152,7 +172,7 @@ function createPublicCatalogService(options = {}) {
 
   async function getPublicShowtime(id) {
     const showtimeId = Number(id);
-    if (!Number.isInteger(showtimeId) || showtimeId <= 0) {
+    if (!isDbId(showtimeId)) {
       throw new AppError(404, 'Không tìm thấy suất diễn.');
     }
 

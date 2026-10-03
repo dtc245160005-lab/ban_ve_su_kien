@@ -474,10 +474,10 @@ Hệ thống cung cấp danh mục công khai các suất diễn đang mở bán
 - `GET /api/events/showtimes?cursor=&limit=`:
   - Trả về danh sách suất diễn thỏa mãn đồng thời: `showtimes.status = 'on_sale'`, `events.status = 'published'` và `starts_at > now()`.
   - Sắp xếp tăng dần theo `(starts_at ASC, id ASC)`.
-  - Phân trang theo con trỏ (keyset pagination) qua biểu thức so sánh bộ tuple `(starts_at, id) > (:cursorStartsAt, :cursorId)`, không dùng `OFFSET`. `cursor` được mã hóa `base64url` từ chuỗi JSON `{ s: starts_at ISO, i: id }`. Khi con trỏ hỏng hoặc không đúng định dạng, API trả về lỗi `400`.
+  - Phân trang theo con trỏ (keyset pagination) qua biểu thức so sánh bộ tuple `(starts_at, id) > (:cursorStartsAt, :cursorId)`, không dùng `OFFSET`. `cursor` được mã hóa `base64url` từ chuỗi JSON `{ s: starts_at ISO, i: id }`. Khi con trỏ hỏng, có ký tự ngoài bảng base64url, hoặc id vượt kiểu integer của PostgreSQL (2147483647), API trả về lỗi `400`; id suất diễn vượt giới hạn này ở trang chi tiết trả `404`.
   - `limit` mặc định là `20`, tối đa `50` (nếu vượt quá 50 sẽ tự động kẹp về 50).
   - Định dạng dữ liệu trả về: `{ success: true, data: { items, nextCursor }, items, nextCursor }`. Mỗi phần tử chỉ gồm các trường công khai: `showtimeId`, `eventId`, `title`, `description`, `venue`, `roomName`, `startsAt` (ISO UTC), `minPrice: null`, `maxPrice: null` (tạm thời để `null` cho tới Sprint 3 / T-34). Tuyệt đối không để lộ `owner_id`, `status` nội bộ hay metadata quản trị.
-  - Bộ nhớ đệm Redis: Cache kết quả 30 giây theo khóa `catalog:onsale:v1:<cursor|first>:<limit>`. Nếu Redis gặp sự cố, hệ thống tự động bỏ qua cache và truy vấn trực tiếp cơ sở dữ liệu để trả kết quả `200` (không làm gián đoạn dịch vụ với lỗi `500`).
+  - Bộ nhớ đệm Redis: Cache kết quả 30 giây theo khóa `<REDIS_KEY_PREFIX>catalog:onsale:v1:<cursor|first>:<limit>` (tiền tố mặc định `bvsk:`, giống session). Nếu Redis gặp sự cố, hệ thống tự động bỏ qua cache và truy vấn trực tiếp cơ sở dữ liệu để trả kết quả `200` (không làm gián đoạn dịch vụ với lỗi `500`).
 - `GET /api/events/showtimes/:id`:
   - Trả về thông tin chi tiết của một suất diễn cùng số lượng ghế (`seatCount`) và cờ `onSale` (`true` hoặc `false`).
   - Trả về `404` nếu suất diễn không tồn tại hoặc sự kiện cha chưa `published`.
