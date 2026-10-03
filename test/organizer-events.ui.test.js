@@ -444,6 +444,29 @@ describe('T-10 Organizer Events UI Tests (JSDOM)', () => {
     assert.match(startsAtError.textContent, /Thời điểm bắt đầu phải ở tương lai/);
   });
 
+  test('publish button makes a ready draft visible to buyers', async () => {
+    const [event] = await db('events').insert({
+      owner_id: organizerA.id, title: 'Ready for sale', venue: 'Venue', status: 'draft',
+    }).returning('*');
+    createdEventIds.push(event.id);
+    const [showtime] = await db('showtimes').insert({
+      event_id: event.id, starts_at: new Date(Date.now() + 86400000),
+    }).returning('*');
+    const [category] = await db('seat_categories').insert({ showtime_id: showtime.id, name: 'VIP' }).returning('*');
+    await db('seats').insert({ showtime_id: showtime.id, category_id: category.id, row_label: 'A', seat_number: 1 });
+
+    const dom = await openPage(`/organizer-events.html?id=${event.id}`, { cookieJar: jarA });
+    const { window } = dom;
+    const button = await waitFor(() => {
+      const candidate = window.document.getElementById('publishEventBtn');
+      return candidate && !candidate.hidden && typeof candidate.onclick === 'function' ? candidate : null;
+    });
+    button.click();
+    await waitFor(async () => (await db('events').where({ id: event.id }).first()).status === 'published');
+    await waitFor(() => button.hidden);
+    assert.match(window.document.getElementById('eventStatusBadge').textContent, /Đã xuất bản/);
+  });
+
   test('g. Quyền: mở ?id=<sự kiện của B> thì trang hiện "Bạn không có quyền xem sự kiện này"', async () => {
     const [eventOfB] = await db('events')
       .insert({ owner_id: organizerB.id, title: 'Sự kiện Bí Mật Của B', venue: 'B Location', status: 'draft' })

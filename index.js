@@ -44,7 +44,30 @@ async function start(options = {}) {
     throw err;
   }
 
-  // 4. Khởi tạo Express app và bắt đầu lắng nghe
+  // 4. Kiểm tra schema và vai trò hệ thống
+  try {
+    const { checkSchema } = require('./services/schemaCheck');
+    const schemaResult = await checkSchema(db);
+    if (!schemaResult.ok) {
+      console.error('\n[Schema] Khởi động thất bại: Cơ sở dữ liệu chưa sẵn sàng hoặc bị lệch schema:');
+      for (const item of schemaResult.items) {
+        if (item.status !== 'OK') {
+          console.error(`  - [LỖI] ${item.description}${item.hint ? ` -> Cách sửa: ${item.hint}` : ''}`);
+        }
+      }
+      if (redis && redis.isOpen) {
+        await closeRedis();
+      }
+      throw new Error('Database schema verification failed');
+    }
+  } catch (err) {
+    if (redis && redis.isOpen) {
+      await closeRedis();
+    }
+    throw err;
+  }
+
+  // 5. Khởi tạo Express app và bắt đầu lắng nghe
   const app = options.app || createApp(options);
   const server = await new Promise((resolve, reject) => {
     const s = app.listen(port, () => {

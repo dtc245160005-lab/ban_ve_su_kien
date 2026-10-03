@@ -151,6 +151,30 @@ function createEventService(customDb) {
     return updated;
   }
 
+  async function publishEvent(id, user, now = new Date()) {
+    return db.transaction(async (trx) => {
+      const event = await trx('events').where({ id }).forUpdate().first();
+      assertCanManage(user, event);
+      if (event.status !== 'draft') {
+        throw new AppError(409, 'Chỉ có thể xuất bản sự kiện đang là bản nháp.');
+      }
+
+      const readyShowtime = await trx('showtimes')
+        .join('seats', 'seats.showtime_id', 'showtimes.id')
+        .where('showtimes.event_id', id)
+        .andWhere('showtimes.starts_at', '>', now)
+        .first('showtimes.id');
+      if (!readyShowtime) {
+        throw new AppError(409, 'Cần có ít nhất một suất diễn trong tương lai đã nạp sơ đồ ghế trước khi xuất bản.');
+      }
+
+      const [published] = await trx('events').where({ id, status: 'draft' })
+        .update({ status: 'published', updated_at: trx.fn.now() })
+        .returning('*');
+      return published;
+    });
+  }
+
   async function deleteEvent(id, user) {
     const event = await db('events').where({ id }).first();
     assertCanManage(user, event);
@@ -279,6 +303,7 @@ function createEventService(customDb) {
     getOrganizerEventById,
     createEvent,
     updateEvent,
+    publishEvent,
     deleteEvent,
     createShowtime,
     updateShowtime,

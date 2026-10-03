@@ -6,8 +6,9 @@ Dự án backend bán vé sự kiện xây dựng trên Node.js, Express, Knex, 
 
 ## Chạy dự án
 
-Yêu cầu Node.js 20.19+ (hoặc 22.13+/24+), PostgreSQL 15+ và Redis 7+. Tạo `.env` từ `.env.example`
-và điền cấu hình trước khi chạy. Với Docker Desktop đang chạy:
+Yêu cầu Node.js 20.19+ (hoặc 22.13+/24+), PostgreSQL 15+ và Redis 7+.
+
+### Cách 1: Sử dụng Docker Desktop (Nếu máy có Docker)
 
 ```bash
 # 1. Tạo cấu hình (PowerShell: Copy-Item .env.example .env)
@@ -31,13 +32,50 @@ npm run verify
 npm start
 ```
 
-Nếu PostgreSQL/Redis đã được cài trực tiếp và đang chạy, bỏ qua bước Docker,
-đặt `DB_CONNECTION_STRING` và `REDIS_URL` theo các dịch vụ đó. Database ứng dụng
-phải được tạo trước; `setup` không tạo hay xóa database.
+### Cách 2: Chạy trực tiếp với PostgreSQL & Redis cài trên máy (Local không dùng Docker)
+
+Nếu máy bạn đã cài PostgreSQL và Redis trực tiếp:
+1. **Sao chép cấu hình:**
+   - Trên PowerShell: `Copy-Item .env.example .env`
+   - Trên Linux / macOS / Git Bash: `cp .env.example .env`
+2. **Cập nhật thông tin trong `.env`:**
+   - Mở file `.env`, cập nhật `DB_CONNECTION_STRING` với mật khẩu PostgreSQL thực tế của máy bạn khi cài đặt (thay thế `your_postgres_password`).
+   - Đảm bảo `REDIS_URL` trỏ đúng vào địa chỉ Redis đang chạy (mặc định: `redis://localhost:6379`).
+3. **Cài đặt dependencies:**
+   ```bash
+   npm ci
+   ```
+4. **Tạo database ứng dụng nếu chưa có (không cần Docker hoặc `psql`):**
+   ```bash
+   npm run db:create
+   ```
+   *(Script sẽ tự động kết nối và tạo cơ sở dữ liệu `ban_ve_su_kien` một cách an toàn).*
+5. **Kiểm tra môi trường & khởi tạo bảng / dữ liệu demo:**
+   ```bash
+   npm run doctor
+   npm run setup
+   ```
+   *(Lệnh `setup` cũng sẽ tự động phát hiện và tạo database nếu bạn chưa chạy bước 4).*
+6. **Kiểm tra toàn diện trên database TẠM:**
+   ```bash
+   npm run build
+   npm run verify
+   ```
+7. **Khởi động ứng dụng:**
+   ```bash
+   npm start
+   ```
+
+---
 
 Chạy toàn bộ stack bằng Docker: tạo `.env`, cấu hình cổng không trùng với dịch vụ
-đang chạy rồi dùng `docker compose up --build`. Container API tự chạy `setup`
-trước khi mở server. Đây là cấu hình development; email dùng chế độ dev.
+đang chạy rồi dùng `docker compose up --build`. Lệnh khởi động trong `docker-compose.yml` (chỉ dùng
+trên máy cá nhân) chạy `npm run migrate:latest` (tạo bảng, vá cột và chèn 5 vai trò hệ thống nền tảng),
+sau đó chỉ chạy `npm run seed:run` khi biến `DEMO_*` được cấu hình rõ ràng, rồi mở server bằng `npm start`.
+`Dockerfile` (dùng cho Render/staging) chỉ chạy `migrate:latest` rồi `npm start`, **không bao giờ seed**:
+seed đặt lại mật khẩu tài khoản demo nên không được chạy tự động trên staging/production.
+Trên Render, chỉ cần deploy lại để `migrate:latest` tự nạp vai trò hệ thống và vá cột `purpose` cho database hiện tại.
+Đây là cấu hình development; email dùng chế độ dev.
 
 `verify` không khởi tạo database ứng dụng: nó tạo database tạm, migrate/rollback,
 seed, lint/test rồi dọn database tạm. Không dùng `verify` thay cho `setup`.
@@ -182,9 +220,10 @@ Seed dùng để khởi tạo dữ liệu mẫu cho hệ thống và có tính *
 npm run seed:run
 ```
 
-**Đặc điểm của Seed T-04:**
-- Khởi tạo đúng 5 vai trò hệ thống bắt buộc: `buyer`, `organizer`, `checker`, `accountant`, `admin`.
-- Tạo 2 tài khoản demo: Admin (gán role `admin`) và Organizer (gán role `organizer`).
+**Đặc điểm của Seed:**
+- 5 vai trò hệ thống (`buyer`, `organizer`, `checker`, `accountant`, `admin`) được khởi tạo tự động qua migration (dữ liệu nền hệ thống).
+- Seed chỉ phụ trách tạo 2 tài khoản demo: Admin (gán role `admin`) và Organizer (gán role `organizer`).
+- Nếu thiếu các biến môi trường `DEMO_*`, seed sẽ in cảnh báo `[SEED WARN]` và bỏ qua tạo tài khoản demo mà không ném lỗi (ở production chỉ tạo tài khoản demo khi `DEMO_*` được đặt rõ ràng).
 - Mật khẩu được hash an toàn bằng thuật toán **Argon2id** (`argon2.argon2id`), không bao giờ lưu mật khẩu thô trong database.
 - Không xóa hay làm ảnh hưởng đến các bản ghi người dùng / vai trò khác ngoài dữ liệu demo (hỗ trợ CSDL đã có sẵn dữ liệu trước đó).
 
@@ -192,18 +231,77 @@ npm run seed:run
 
 ## 5. Kiểm Thử Hệ Thống (Testing)
 
-Dự án sử dụng test runner chuẩn của Node.js (`node --test`), bao gồm kiểm tra cấu trúc CSDL và các tính năng nghiệp vụ:
+### Kiểm thử Unit & Integration:
 ```bash
 npm test
 ```
 
+### Kiểm thử End-to-End Sprint 1 (E2E):
+
+Bộ kiểm thử E2E kiểm tra toàn bộ 24 tiêu chí nghiệp vụ Sprint 1 (H1-H2, R1-R4, L1-L2, A1-A4, L3, S1, P1-P3, E1-E5, O1, K1) qua giao thức HTTP thuần:
+
+#### 1. Chạy cơ bản (mặc định kiểm tra `http://localhost:8090`):
+- **Trên mọi hệ điều hành (PowerShell, Bash, CMD):**
+  ```bash
+  npm run e2e:sprint1
+  ```
+
+#### 2. Chạy kèm kiểm tra khoá đăng nhập (K1 - sai 5 lần nhận HTTP 429):
+- **Khuyên dùng (chạy đa nền tảng, không phụ thuộc shell):**
+  ```bash
+  npm run e2e:sprint1:lockout
+  ```
+- **Hoặc qua tham số dòng lệnh CLI:**
+  ```bash
+  node scripts/e2e-sprint1.js --lockout
+  ```
+- **Trên Windows PowerShell:**
+  ```powershell
+  $env:E2E_LOCKOUT="1"; npm run e2e:sprint1
+  ```
+- **Trên Linux / macOS / Git Bash:**
+  ```bash
+  E2E_LOCKOUT=1 npm run e2e:sprint1
+  ```
+
+#### 3. Chạy với log kích hoạt email (`DEV_MAIL_FILE`):
+Khi chạy máy chủ ở chế độ dev (`MAIL_TRANSPORT=dev`), email chứa mã xác nhận 6 số được ghi ra console/file. Để runner E2E tự động đọc mã OTP kích hoạt tài khoản:
+- **Khởi động server có ghi file log dev mail:**
+  - PowerShell: `$env:DEV_MAIL_FILE=".\dev_mail.log"; npm start`
+  - Bash: `DEV_MAIL_FILE=./dev_mail.log npm start`
+- **Chạy E2E với file log:**
+  - Qua tham số CLI (mọi shell):
+    ```bash
+    node scripts/e2e-sprint1.js --mail-file=./dev_mail.log --lockout
+    ```
+  - PowerShell:
+    ```powershell
+    $env:DEV_MAIL_FILE=".\dev_mail.log"; npm run e2e:sprint1:lockout
+    ```
+  - Bash:
+    ```bash
+    DEV_MAIL_FILE=./dev_mail.log npm run e2e:sprint1:lockout
+    ```
+*(Ghi chú: Nếu chạy local mà không truyền tham số, runner sẽ tự động kiểm tra nếu có file `.dev_mail_local.log` hoặc `.dev_mail.log` trong thư mục gốc).*
+
+#### 4. Kiểm thử máy chủ staging (Render):
+- **PowerShell:**
+  ```powershell
+  $env:BASE_URL="https://ban-ve-su-kien.onrender.com"; npm run e2e:sprint1
+  ```
+- **Bash / Linux / macOS:**
+  ```bash
+  BASE_URL=https://ban-ve-su-kien.onrender.com npm run e2e:sprint1
+  ```
+
 Tất cả các bài kiểm thử tự động được đặt trong thư mục `test/`:
+- `test/fresh-clone-repair.test.js`: Kiểm thử kiểm tra schema, seed không có DEMO_* và vá schema lệch cho DB cũ.
 - `test/events.test.js`: Kiểm thử API sự kiện, phân quyền truy cập, kiểm tra dữ liệu, lọc sự kiện nháp/công khai và migration gán owner_id cho admin.
 - `test/showtimes.test.js`: Kiểm thử API suất diễn, xác thực múi giờ, kiểm tra thời điểm tương lai/quá khứ, cảnh báo trùng giờ và lưu trữ chuẩn UTC.
 - `test/eventForm.test.js`: Kiểm thử các hàm thuần validateEventForm, validateShowtimeForm, toIsoVietnam và formatVietnamDateTime.
 - `test/register.test.js`: Kiểm thử luồng đăng ký người mua, kiểm tra dữ liệu, chống timing attack, concurrency race condition và bảo mật log.
 - `test/activation.test.js`: Kiểm thử kích hoạt tài khoản atomic, token hết hạn (410), đã dùng (409), rate limit gửi lại qua Redis, và đăng nhập với tài khoản chưa kích hoạt (403 ACCOUNT_NOT_ACTIVE).
-- `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles seed và xác thực mật khẩu Argon2id của 2 tài khoản demo.
+- `test/t04-schema.test.js`: Xác minh schema 3 bảng `roles`, `users`, `user_roles`, ràng buộc `UNIQUE` email, khóa chính ghép, 5 roles và xác thực mật khẩu Argon2id của 2 tài khoản demo.
 - Các bài kiểm thử khác: `test/authService.test.js`, `test/rbac.test.js`, `test/startup.test.js`, `test/health.test.js`, `test/logger.test.js`, `test/api-client.test.js`, `test/menu.test.js`.
 
 ---
@@ -247,16 +345,17 @@ npm run backup
 - **Đăng ký an toàn (`POST /api/auth/register`):**
   - Nhận `email`, `password`, `full_name`. Kiểm tra định dạng dữ liệu đầu vào.
   - Tạo tài khoản với vai trò mặc định `buyer` và trạng thái `is_active = false`.
-  - Sinh mã kích hoạt ngẫu nhiên 32 bytes (base64url), lưu hash SHA-256 vào bảng `email_activation_tokens` với thời hạn 24 giờ.
+  - Sinh mã xác nhận 6 số ngẫu nhiên (`crypto.randomInt`), chỉ lưu hash SHA-256 vào bảng `email_activation_tokens`, hiệu lực `ACTIVATION_CODE_TTL_SECONDS` (mặc định 600 giây).
   - **Chống lộ thông tin:** Luôn trả về HTTP 202 cùng thông báo chung `"Nếu email hợp lệ, mã xác nhận sẽ được gửi đến hộp thư."` bất kể email mới hay đã tồn tại (đồng thời chạy dummy hash để cân bằng thời gian phản hồi).
   - **Xử lý đồng thời:** Xử lý race condition an toàn qua ràng buộc unique, trả về 202 và không gây lỗi 500 khi có nhiều request đăng ký cùng lúc.
 - **Kích hoạt tài khoản (`POST /api/auth/activate`):**
-  - Trang `public/activate.html` đọc token từ URL (`#token=...` hoặc `?token=...`), tự động xóa token khỏi thanh địa chỉ và gọi API `POST /api/auth/activate`.
+  - Trang `public/activate.html` cho người dùng nhập email và mã 6 số, gọi `POST /api/auth/activate` với `{ email, code }`.
   - Sử dụng một câu lệnh SQL atomic duy nhất (`UPDATE ... RETURNING`) để ngăn chặn tuyệt đối tình trạng kích hoạt trùng lặp.
-  - Trả về HTTP 200 khi thành công, HTTP 409 khi token đã dùng, HTTP 410 khi token hết hạn, HTTP 400 khi token không hợp lệ.
+  - Trả về HTTP 200 khi thành công; 400 `CODE_INVALID` khi mã sai; 429 `CODE_LOCKED` khi sai quá `ACTIVATION_CODE_MAX_ATTEMPTS` lần (mặc định 5, phải yêu cầu mã mới); 409 khi mã đã dùng hoặc tài khoản đã kích hoạt; 410 `CODE_EXPIRED` khi mã hết hạn.
+  - Liên kết kích hoạt dạng token cũ (`{ token }`) vẫn được chấp nhận để tương thích ngược: 409 khi token đã dùng, 410 khi hết hạn, 400 khi không hợp lệ.
 - **Gửi lại email kích hoạt (`POST /api/auth/resend-activation`):**
   - Giới hạn tối đa 5 lần gửi lại mỗi giờ cho một email (quản lý qua Redis).
-  - Vô hiệu hoá các token cũ còn hạn của người dùng trước khi sinh token mới.
+  - Vô hiệu hoá các mã cũ còn hạn của người dùng trước khi sinh mã mới.
   - Luôn trả về HTTP 202 với thông báo chung.
 - **Dịch vụ Email (`services/emailService.js`):**
   - Môi trường dev/test: In nội dung email kèm mã xác nhận 6 số ra console dạng khối `[DEV MAIL]`.
@@ -265,6 +364,20 @@ npm run backup
 ---
 
 ## 9. Quản Lý Sự Kiện & Suất Diễn (T-09, T-10 / S-04)
+
+### Giao diện Sprint 1
+
+- `/home.html`: trang công khai; tải các sự kiện đã xuất bản qua `GET /api/events`.
+- `/login.html`: đăng nhập qua `POST /api/auth/login`, chuyển đến khu vực phù hợp với vai trò; hỗ trợ hiện/ẩn mật khẩu và báo thời gian khóa tạm thời. Giao diện dùng biểu tượng vé và nền SVG nhẹ; không hiện đăng nhập Google, ghi nhớ đăng nhập hay quên mật khẩu vì backend chưa hỗ trợ các chức năng này.
+- `/register.html`: đăng ký người mua qua `POST /api/auth/register`, kiểm tra họ tên/email/mật khẩu/xác nhận mật khẩu ở trình duyệt; sau phản hồi chung `202`, hiển thị hướng dẫn kiểm tra email và liên kết tới bước nhập mã tại `/activate.html` (`POST /api/auth/activate`, `POST /api/auth/resend-activation`).
+- `/organizer-events.html`: dashboard tính từ `GET /api/organizer/events`, tạo/sửa sự kiện và thêm suất diễn qua các API organizer hiện có. Dữ liệu dashboard không phải số liệu giả.
+- `/buyer.html`: xem sự kiện đã xuất bản qua `GET /api/workspaces/buyer` và xem sơ đồ ghế đã lưu qua `GET /api/workspaces/buyer/events/:id/seat-maps`. Chưa có chức năng chọn ghế, mua vé hoặc thanh toán.
+
+Menu được thay đổi theo phiên/role ở frontend để dễ sử dụng; phân quyền thật vẫn nằm ở middleware backend. Nếu màn hình nhỏ, menu chuyển sang nút mở/đóng; form vẫn cuộn dọc bình thường.
+
+Luồng mở bán: tạo sự kiện (bản nháp) → thêm suất diễn trong tương lai → vào **Sơ đồ ghế**, chọn tệp JSON và bấm **Xác nhận nạp** → quay về chi tiết sự kiện, bấm **Xuất bản**. Sự kiện chỉ hiện ở `/buyer.html` sau khi xuất bản. Trang nạp sơ đồ ghế có tệp mẫu để tải và hiển thị số ghế đã lưu khi mở lại.
+
+Để thử luồng này trên máy với database tạm (cần PostgreSQL và Redis đang chạy), dùng `npm run demo:event-flow`. Script mở `http://localhost:8091/login.html`, in ra hai tài khoản demo và mật khẩu dùng một lần trong terminal. Nhấn `Ctrl+C` để dừng server và xóa database demo; không sửa `.env` hoặc database đang dùng.
 
 - **Mô hình dữ liệu:**
   - Bảng `events`: Bổ sung `owner_id` (FK tới `users.id` với `ON DELETE RESTRICT`), `venue`, `status` (`draft`, `published`, `archived`), bỏ các cột giá và tổng số vé cũ.

@@ -3,9 +3,12 @@ const form = typeof document !== 'undefined' ? document.getElementById('register
 const fullNameInput = typeof document !== 'undefined' ? document.getElementById('fullName') : null;
 const emailInput = typeof document !== 'undefined' ? document.getElementById('email') : null;
 const passwordInput = typeof document !== 'undefined' ? document.getElementById('password') : null;
+const confirmPasswordInput = typeof document !== 'undefined' ? document.getElementById('confirmPassword') : null;
 const fullNameError = typeof document !== 'undefined' ? document.getElementById('fullNameError') : null;
 const emailError = typeof document !== 'undefined' ? document.getElementById('emailError') : null;
 const passwordError = typeof document !== 'undefined' ? document.getElementById('passwordError') : null;
+const confirmPasswordError = typeof document !== 'undefined' ? document.getElementById('confirmPasswordError') : null;
+const successBox = typeof document !== 'undefined' ? document.getElementById('successBox') : null;
 const messageBox = typeof document !== 'undefined' ? document.getElementById('messageBox') : null;
 const submitButton = typeof document !== 'undefined' ? document.getElementById('submitButton') : null;
 
@@ -13,10 +16,17 @@ function clearErrors() {
   if (fullNameError) fullNameError.textContent = '';
   if (emailError) emailError.textContent = '';
   if (passwordError) passwordError.textContent = '';
+  if (confirmPasswordError) confirmPasswordError.textContent = '';
   if (messageBox) {
     messageBox.textContent = '';
     messageBox.hidden = true;
   }
+}
+
+function updateRegisterState() {
+  if (!form) return;
+  submitButton.disabled = !fullNameInput.value.trim() || !emailInput.validity.valid || !emailInput.value.trim() ||
+    passwordInput.value.length < 8 || passwordInput.value !== confirmPasswordInput.value;
 }
 
 function showFieldErrors(errors = {}) {
@@ -32,6 +42,42 @@ function showFieldErrors(errors = {}) {
 }
 
 if (form) {
+  form.querySelectorAll('input').forEach((input) => input.addEventListener('input', () => {
+    const errors = validateRegisterForm({
+      full_name: fullNameInput.value, email: emailInput.value, password: passwordInput.value,
+    }).errors;
+    fullNameError.textContent = fullNameInput.value ? errors.full_name || '' : '';
+    emailError.textContent = emailInput.value ? errors.email || '' : '';
+    passwordError.textContent = passwordInput.value ? errors.password || '' : '';
+    confirmPasswordError.textContent = confirmPasswordInput.value && confirmPasswordInput.value !== passwordInput.value
+      ? 'Mật khẩu xác nhận không khớp.' : '';
+    updateRegisterState();
+  }));
+  if (passwordInput) {
+    passwordInput.addEventListener('blur', () => {
+      const validation = typeof validateRegisterForm === 'function'
+        ? validateRegisterForm({ password: passwordInput.value })
+        : { errors: {} };
+      if (passwordInput.value.length < 8) {
+        if (passwordError) {
+          passwordError.textContent = validation.errors.password || 'Mật khẩu phải từ 8 đến 128 ký tự.';
+        }
+      } else if (!validation.errors.password) {
+        if (passwordError) {
+          passwordError.textContent = '';
+        }
+      }
+    });
+  }
+  form.querySelectorAll('.password-toggle').forEach((button) => button.addEventListener('click', () => {
+    const input = document.getElementById(button.dataset.target);
+    const visible = input.type === 'password';
+    input.type = visible ? 'text' : 'password';
+    button.setAttribute('aria-pressed', String(visible));
+    button.setAttribute('aria-label', visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  }));
+  updateRegisterState();
+  window.addEventListener('pageshow', updateRegisterState);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     clearErrors();
@@ -47,6 +93,10 @@ if (form) {
 
     if (!validation.valid) {
       showFieldErrors(validation.errors);
+      return;
+    }
+    if (password !== confirmPasswordInput.value) {
+      confirmPasswordError.textContent = 'Mật khẩu xác nhận không khớp.';
       return;
     }
 
@@ -71,7 +121,13 @@ if (form) {
 
       if (response.status === 202) {
         sessionStorage.setItem('activationEmail', email.toLowerCase());
-        window.location.assign(`/activate.html?email=${encodeURIComponent(email.toLowerCase())}`);
+        form.hidden = true;
+        successBox.hidden = false;
+        successBox.innerHTML = '<strong>Kiểm tra email của bạn</strong><p>Nếu email hợp lệ, mã xác nhận đã được gửi đến hộp thư. Hãy nhập mã để kích hoạt tài khoản.</p>';
+        const link = document.createElement('a');
+        link.href = `/activate.html?email=${encodeURIComponent(email.toLowerCase())}`;
+        link.textContent = 'Nhập mã xác nhận';
+        successBox.appendChild(link);
         return;
       }
 
@@ -87,7 +143,8 @@ if (form) {
     } finally {
       if (!form.hidden) {
         submitButton.disabled = false;
-        submitButton.textContent = 'Đăng ký';
+        submitButton.textContent = 'Tạo tài khoản';
+        updateRegisterState();
       }
     }
   });

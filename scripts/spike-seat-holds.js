@@ -1,4 +1,5 @@
 // K-01: experiment only. This is not the production seat-hold service.
+require('dotenv').config({ quiet: true });
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const os = require('node:os');
@@ -39,7 +40,7 @@ function newRedis(url) {
   client.on('error', () => {});
   return client;
 }
-async function runSpike({ connectionString = process.env.DB_CONNECTION_STRING,
+async function runSpike({ connectionString = process.env.DB_CONNECTION_STRING || 'postgresql://postgres:123456@127.0.0.1:5432/postgres',
   redisUrl = process.env.REDIS_URL || 'redis://localhost:6379', trials = 5 } = {}) {
   const adminUrl = new URL(connectionString);
   const redisAddress = new URL(redisUrl);

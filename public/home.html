@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vé Sự Kiện - Trang chủ</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div id="siteHeader"></div>
+    <main class="public-home">
+      <section class="home-hero">
+        <span class="eyebrow">SỰ KIỆN ĐÁNG CHỜ ĐỢI</span>
+        <h1>Tìm sự kiện yêu thích, bắt đầu từ đây.</h1>
+        <p>Khám phá những sự kiện đã được ban tổ chức công bố. Đăng ký để theo dõi và xem sơ đồ ghế của từng suất diễn.</p>
+        <div class="actions-row">
+          <a class="primary-btn small-btn" href="#events">Khám phá sự kiện</a>
+          <a class="secondary-btn small-btn" href="/register.html">Tạo tài khoản</a>
+        </div>
+      </section>
+      <section id="events" class="home-events" aria-labelledby="homeEventsTitle">
+        <div class="section-heading"><div><span class="eyebrow">KHÁM PHÁ</span><h2 id="homeEventsTitle">Sự kiện đã công bố</h2></div></div>
+        <div id="publicEventMessage" class="message" role="status">Đang tải sự kiện...</div>
+        <div id="publicEventList" class="public-event-grid"></div>
+      </section>
+      <section id="about" class="home-info" aria-labelledby="aboutTitle">
+        <span class="eyebrow">VỀ CHÚNG TÔI</span>
+        <h2 id="aboutTitle">Một nơi để khám phá sự kiện</h2>
+        <p>Vé Sự Kiện giúp bạn xem những sự kiện đã được công bố và thông tin từng suất diễn. Ban tổ chức có khu vực riêng để quản lý sự kiện của mình.</p>
+      </section>
+      <section id="help" class="home-info" aria-labelledby="helpTitle">
+        <span class="eyebrow">HỖ TRỢ</span>
+        <h2 id="helpTitle">Bắt đầu như thế nào?</h2>
+        <p>Người mua có thể <a href="/register.html">đăng ký tài khoản</a>, nhập mã xác nhận được gửi qua email rồi <a href="/login.html">đăng nhập</a>. Nếu chưa nhận được mã, dùng chức năng gửi lại ở trang xác nhận.</p>
+      </section>
+    </main>
+    <script src="./site-header.js" defer></script>
+    <script src="./home.js" defer></script>
+  </body>
+</html>

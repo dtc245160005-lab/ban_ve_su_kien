@@ -43,12 +43,13 @@ function compareMigrations(recorded, available) {
 async function inspectEnvironment({ env = process.env, root = path.resolve(__dirname, '..'),
   requireConfiguredDatabase = false } = {}) {
   const errors = validateEnvironment(env);
-  if (errors.length) return { errors, pending: [] };
+  if (errors.length) return { errors, pending: [], schemaItems: [] };
   const pg = new Client({ connectionString: env.DB_CONNECTION_STRING, connectionTimeoutMillis: 5000 });
   const redis = createClient({ url: env.REDIS_URL || 'redis://localhost:6379',
     socket: { connectTimeout: 5000, reconnectStrategy: false } });
   redis.on('error', () => {});
   let pending = [];
+  let schemaItems = [];
   try {
     await pg.connect();
     await pg.query('SELECT 1');
@@ -64,11 +65,30 @@ async function inspectEnvironment({ env = process.env, root = path.resolve(__dir
       errors.push(`Database có migration từ nhánh khác: ${state.orphaned.join(', ')}. Dùng database mới hoặc đối chiếu nhánh; không tự xóa dữ liệu.`);
     }
     if (requireConfiguredDatabase && pending.length) errors.push('Database chưa migrate đầy đủ.');
+
+    // Kiểm tra cấu trúc schema và vai trò khi DB đã chạy migration hoặc khi yêu cầu DB sẵn sàng
+    if (recorded.length > 0 || requireConfiguredDatabase) {
+      const { checkSchema } = require('../services/schemaCheck');
+      const schemaResult = await checkSchema(pg);
+      schemaItems = schemaResult.items;
+      if (!schemaResult.ok && requireConfiguredDatabase) {
+        for (const item of schemaItems.filter((i) => i.status !== 'OK')) {
+          errors.push(`${item.description}${item.hint ? ` (${item.hint})` : ''}`);
+        }
+      }
+    }
   } catch (error) {
-    const hint = { ECONNREFUSED: 'Kiểm tra host/port và dịch vụ DB.',
-      '28P01': 'Kiểm tra thông tin đăng nhập trong DB_CONNECTION_STRING.',
-      '3D000': 'Database chưa tồn tại; tạo database trước khi setup.' }[error.code];
-    errors.push(`Không kết nối/kiểm tra được PostgreSQL. ${hint || 'Kiểm tra DB_CONNECTION_STRING và dịch vụ DB.'}`);
+    if (error.code === '28P01' || error.code === '28000') {
+      errors.push('Sai thông tin xác thực PostgreSQL (mã 28P01). Vui lòng cập nhật mật khẩu PostgreSQL thực tế của bạn trong file .env (biến DB_CONNECTION_STRING).');
+    } else if (error.code === '3D000') {
+      errors.push('Database chưa tồn tại (mã 3D000). Chạy "npm run db:create" để tự động tạo database ứng dụng.');
+    } else if (error.code === 'ECONNREFUSED') {
+      errors.push('Không thể kết nối đến máy chủ PostgreSQL (ECONNREFUSED). Hãy đảm bảo dịch vụ PostgreSQL đang chạy và đúng cổng.');
+    } else if (error.code === 'ENOTFOUND') {
+      errors.push('Không tìm thấy máy chủ PostgreSQL (ENOTFOUND). Kiểm tra host trong DB_CONNECTION_STRING.');
+    } else {
+      errors.push(`Không kết nối/kiểm tra được PostgreSQL (${error.code || error.message}). Kiểm tra DB_CONNECTION_STRING và dịch vụ DB.`);
+    }
   }
   finally { await pg.end().catch(() => {}); }
   try {
@@ -80,16 +100,25 @@ async function inspectEnvironment({ env = process.env, root = path.resolve(__dir
     }
   } catch { errors.push('Không kết nối được Redis. Kiểm tra REDIS_URL và dịch vụ Redis.'); }
   finally { if (redis.isOpen) await redis.disconnect(); }
-  return { errors, pending };
+  return { errors, pending, schemaItems };
 }
 
 async function main() {
   dotenv.config({ quiet: true });
   const result = await inspectEnvironment();
+  for (const item of result.schemaItems || []) {
+    if (item.status === 'OK') {
+      console.log(`[OK] ${item.description}`);
+    } else {
+      console.error(`[LỖI] ${item.description}${item.hint ? ` (Cách sửa: ${item.hint})` : ''}`);
+    }
+  }
+  const hasSchemaErrors = (result.schemaItems || []).some((i) => i.status !== 'OK');
   for (const error of result.errors) console.error(`[LỖI] ${error}`);
   if (result.pending.length) console.log(`[INFO] ${result.pending.length} migration chờ chạy; dùng npm run setup.`);
-  console.log(result.errors.length ? 'DOCTOR: FAIL' : 'DOCTOR: PASS');
-  process.exitCode = result.errors.length ? 1 : 0;
+  const isFail = result.errors.length > 0 || (result.schemaItems && result.schemaItems.length > 0 && hasSchemaErrors);
+  console.log(isFail ? 'DOCTOR: FAIL' : 'DOCTOR: PASS');
+  process.exitCode = isFail ? 1 : 0;
 }
 if (require.main === module) main().catch(() => { console.error('DOCTOR: FAIL'); process.exitCode = 1; });
 module.exports = { validateEnvironment, compareMigrations, inspectEnvironment };

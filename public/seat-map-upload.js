@@ -2,6 +2,7 @@
 (function () {
   const urlParams = new URLSearchParams(window.location.search);
   const showtimeId = urlParams.get('showtimeId');
+  const eventId = urlParams.get('eventId');
 
   // Elements
   const accountSummary = document.getElementById('accountSummary');
@@ -9,6 +10,8 @@
   const showtimeTitle = document.getElementById('showtimeTitle');
   const showtimeBadge = document.getElementById('showtimeBadge');
   const globalMessage = document.getElementById('globalMessage');
+  const savedSeatMapStatus = document.getElementById('savedSeatMapStatus');
+  const backToEventLink = document.getElementById('backToEventLink');
 
   const uploadSeatMapForm = document.getElementById('uploadSeatMapForm');
   const seatMapFile = document.getElementById('seatMapFile');
@@ -32,6 +35,31 @@
 
   let currentUser = null;
   let selectedFile = null;
+
+  function setEventBackLink(id) {
+    if (!/^\d+$/.test(String(id)) || Number(id) <= 0) return;
+    backToEventLink.href = `/organizer-events.html?id=${encodeURIComponent(id)}`;
+  }
+
+  setEventBackLink(eventId);
+
+  async function loadSavedSeatMapStatus() {
+    try {
+      const response = await apiFetch(`/api/organizer/showtimes/${showtimeId}/seats/status`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        savedSeatMapStatus.textContent = result.message || 'Không thể kiểm tra sơ đồ ghế đã lưu.';
+        return;
+      }
+      setEventBackLink(result.data?.event_id);
+      const count = result.data?.seats_count || 0;
+      savedSeatMapStatus.textContent = count > 0
+        ? `Đã lưu ${count} ghế cho suất diễn này. Nạp tệp mới sẽ thay thế sơ đồ hiện tại.`
+        : 'Suất diễn này chưa có sơ đồ ghế được lưu.';
+    } catch {
+      savedSeatMapStatus.textContent = 'Không thể kiểm tra sơ đồ ghế đã lưu.';
+    }
+  }
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -216,6 +244,7 @@
         const seatsCount = resData.data?.seats_count || 0;
         const categoriesCount = resData.data?.categories_count || 0;
         uploadMsg.textContent = `Nạp sơ đồ ghế thành công! (${seatsCount} ghế, ${categoriesCount} hạng ghế).`;
+        await loadSavedSeatMapStatus();
         uploadBtn.disabled = false;
         return;
       }
@@ -277,6 +306,7 @@
 
     showtimeTitle.textContent = `Nhập sơ đồ ghế cho suất diễn #${showtimeId}`;
     showtimeBadge.textContent = `Suất #${showtimeId}`;
+    await loadSavedSeatMapStatus();
   }
 
   init();
