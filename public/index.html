@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sơ Đồ Chọn Ghế - Neon Horizon Mega Concert</title>
+    <meta name="description" content="Hệ thống chọn và giữ chỗ ghế sự kiện âm nhạc hiện đại chuyên nghiệp" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Top Navigation Bar -->
+    <header class="top-header">
+      <div class="brand-wrapper">
+        <div class="brand-badge-icon">⚡</div>
+        <div>
+          <div class="brand-title">NEON TICKETS</div>
+          <div class="brand-subtitle">
+            <span>Hệ Thống Đặt Vé Sự Kiện Trực Tuyến</span>
+            <span class="live-indicator"><span class="live-dot"></span> ĐANG MỞ BÁN</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn-demo-quick btn-auth-fill" data-email="admin@example.com" data-pass="Admin@123456" title="Tự động điền tài khoản mẫu Admin">
+          <span>👤 Điền Demo Admin</span>
+        </button>
+        <button type="button" class="btn-demo-quick btn-auth-fill" data-email="buyer@example.com" data-pass="Buyer@123456" title="Tự động điền tài khoản mẫu Buyer">
+          <span>🎟️ Điền Demo Buyer</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+      <!-- Event Information Banner -->
+      <section class="event-info-banner glass-panel" aria-label="Thông tin sự kiện">
+        <div class="event-details">
+          <h1>NEON HORIZON MEGA CONCERT 2026</h1>
+          <div class="event-meta">
+            <span class="event-meta-item">📅 <strong>20:00 - Thứ Bảy, 15/11/2026</strong></span>
+            <span class="event-meta-item">📍 <strong>Trung Tâm Hội Nghị & Biểu Diễn Quốc Gia</strong></span>
+            <span class="event-meta-item">🔊 <strong>Âm thanh vòm Dolby Atmos & Laser 3D Show</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Left Column: Interactive Seat Map -->
+      <section class="seatmap-section">
+        <div class="seatmap-container glass-panel">
+          <!-- Stage Area (Hào quang sân khấu) -->
+          <div class="stage-container" aria-label="Sân khấu chính">
+            <div class="stage-spotlight"></div>
+            <div class="stage-platform">
+              <div class="stage-label">
+                <span>✦</span> SÂN KHẤU CHÍNH / MAIN STAGE <span>✦</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seat Legend (Chú thích) -->
+          <div class="seat-legend" aria-label="Chú thích loại ghế">
+            <div class="legend-item">
+              <span class="legend-dot available-vip"></span>
+              <span>Ghế VIP (500.000 ₫)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot available-standard"></span>
+              <span>Ghế Thường (250.000 ₫)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot selected"></span>
+              <span>Ghế Đang Chọn</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot held"></span>
+              <span>Ghế Của Bạn Đang Giữ</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot sold"></span>
+              <span>Đã Bán / Người Khác Giữ</span>
+            </div>
+          </div>
+
+          <!-- Interactive Seat Map Layout -->
+          <div class="seat-map" aria-label="Sơ đồ ghế ngồi">
+            <!-- ZONE 1: KHU VỰC VIP (Hàng A, B, C) -->
+            <div class="zone-block">
+              <div class="zone-header vip">⭐ KHU VỰC VIP FRONT-ROW</div>
+
+              <!-- Hàng A (Bao gồm A1, A2, A3 cho các test có sẵn) -->
+              <div class="seat-row">
+                <span class="row-label">A</span>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="A1" data-price="500000" title="Hàng A - Ghế 1 (VIP: 500.000 ₫)">A1</button>
+                  <button class="seat vip-seat" type="button" data-id="A2" data-price="500000" title="Hàng A - Ghế 2 (VIP: 500.000 ₫)">A2</button>
+                  <button class="seat vip-seat" type="button" data-id="A3" data-price="500000" title="Hàng A - Ghế 3 (VIP: 500.000 ₫)">A3</button>
+                  <button class="seat vip-seat" type="button" data-id="A4" data-price="500000" title="Hàng A - Ghế 4 (VIP: 500.000 ₫)">A4</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="A5" data-price="500000" title="Hàng A - Ghế 5 (VIP: 500.000 ₫)">A5</button>
+                  <button class="seat vip-seat" type="button" data-id="A6" data-price="500000" title="Hàng A - Ghế 6 (VIP: 500.000 ₫)">A6</button>
+                  <button class="seat vip-seat" type="button" data-id="A7" data-price="500000" title="Hàng A - Ghế 7 (VIP: 500.000 ₫)">A7</button>
+                  <button class="seat vip-seat" type="button" data-id="A8" data-price="500000" title="Hàng A - Ghế 8 (VIP: 500.000 ₫)">A8</button>
+                </div>
+              </div>
+
+              <!-- Hàng B -->
+              <div class="seat-row">
+                <span class="row-label">B</span>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="B1" data-price="500000" title="Hàng B - Ghế 1 (VIP: 500.000 ₫)">B1</button>
+                  <button class="seat vip-seat" type="button" data-id="B2" data-price="500000" title="Hàng B - Ghế 2 (VIP: 500.000 ₫)">B2</button>
+                  <button class="seat vip-seat sold" type="button" data-id="B3" data-price="500000" disabled title="Hàng B - Ghế 3 (Đã bán)">B3</button>
+                  <button class="seat vip-seat" type="button" data-id="B4" data-price="500000" title="Hàng B - Ghế 4 (VIP: 500.000 ₫)">B4</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="B5" data-price="500000" title="Hàng B - Ghế 5 (VIP: 500.000 ₫)">B5</button>
+                  <button class="seat vip-seat" type="button" data-id="B6" data-price="500000" title="Hàng B - Ghế 6 (VIP: 500.000 ₫)">B6</button>
+                  <button class="seat vip-seat sold" type="button" data-id="B7" data-price="500000" disabled title="Hàng B - Ghế 7 (Đã bán)">B7</button>
+                  <button class="seat vip-seat" type="button" data-id="B8" data-price="500000" title="Hàng B - Ghế 8 (VIP: 500.000 ₫)">B8</button>
+                </div>
+              </div>
+
+              <!-- Hàng C -->
+              <div class="seat-row">
+                <span class="row-label">C</span>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="C1" data-price="500000" title="Hàng C - Ghế 1 (VIP: 500.000 ₫)">C1</button>
+                  <button class="seat vip-seat" type="button" data-id="C2" data-price="500000" title="Hàng C - Ghế 2 (VIP: 500.000 ₫)">C2</button>
+                  <button class="seat vip-seat" type="button" data-id="C3" data-price="500000" title="Hàng C - Ghế 3 (VIP: 500.000 ₫)">C3</button>
+                  <button class="seat vip-seat" type="button" data-id="C4" data-price="500000" title="Hàng C - Ghế 4 (VIP: 500.000 ₫)">C4</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat vip-seat" type="button" data-id="C5" data-price="500000" title="Hàng C - Ghế 5 (VIP: 500.000 ₫)">C5</button>
+                  <button class="seat vip-seat" type="button" data-id="C6" data-price="500000" title="Hàng C - Ghế 6 (VIP: 500.000 ₫)">C6</button>
+                  <button class="seat vip-seat" type="button" data-id="C7" data-price="500000" title="Hàng C - Ghế 7 (VIP: 500.000 ₫)">C7</button>
+                  <button class="seat vip-seat" type="button" data-id="C8" data-price="500000" title="Hàng C - Ghế 8 (VIP: 500.000 ₫)">C8</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ZONE 2: KHU VỰC STANDARD (Hàng D, E, F) -->
+            <div class="zone-block" style="margin-top: 14px;">
+              <div class="zone-header standard">🎵 KHU VỰC TIÊU CHUẨN (STANDARD)</div>
+
+              <!-- Hàng D -->
+              <div class="seat-row">
+                <span class="row-label">D</span>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="D1" data-price="250000" title="Hàng D - Ghế 1 (250.000 ₫)">D1</button>
+                  <button class="seat" type="button" data-id="D2" data-price="250000" title="Hàng D - Ghế 2 (250.000 ₫)">D2</button>
+                  <button class="seat" type="button" data-id="D3" data-price="250000" title="Hàng D - Ghế 3 (250.000 ₫)">D3</button>
+                  <button class="seat" type="button" data-id="D4" data-price="250000" title="Hàng D - Ghế 4 (250.000 ₫)">D4</button>
+                  <button class="seat" type="button" data-id="D5" data-price="250000" title="Hàng D - Ghế 5 (250.000 ₫)">D5</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="D6" data-price="250000" title="Hàng D - Ghế 6 (250.000 ₫)">D6</button>
+                  <button class="seat" type="button" data-id="D7" data-price="250000" title="Hàng D - Ghế 7 (250.000 ₫)">D7</button>
+                  <button class="seat" type="button" data-id="D8" data-price="250000" title="Hàng D - Ghế 8 (250.000 ₫)">D8</button>
+                  <button class="seat" type="button" data-id="D9" data-price="250000" title="Hàng D - Ghế 9 (250.000 ₫)">D9</button>
+                  <button class="seat" type="button" data-id="D10" data-price="250000" title="Hàng D - Ghế 10 (250.000 ₫)">D10</button>
+                </div>
+              </div>
+
+              <!-- Hàng E -->
+              <div class="seat-row">
+                <span class="row-label">E</span>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="E1" data-price="250000" title="Hàng E - Ghế 1 (250.000 ₫)">E1</button>
+                  <button class="seat sold" type="button" data-id="E2" data-price="250000" disabled title="Hàng E - Ghế 2 (Đã bán)">E2</button>
+                  <button class="seat" type="button" data-id="E3" data-price="250000" title="Hàng E - Ghế 3 (250.000 ₫)">E3</button>
+                  <button class="seat" type="button" data-id="E4" data-price="250000" title="Hàng E - Ghế 4 (250.000 ₫)">E4</button>
+                  <button class="seat" type="button" data-id="E5" data-price="250000" title="Hàng E - Ghế 5 (250.000 ₫)">E5</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="E6" data-price="250000" title="Hàng E - Ghế 6 (250.000 ₫)">E6</button>
+                  <button class="seat" type="button" data-id="E7" data-price="250000" title="Hàng E - Ghế 7 (250.000 ₫)">E7</button>
+                  <button class="seat sold" type="button" data-id="E8" data-price="250000" disabled title="Hàng E - Ghế 8 (Đã bán)">E8</button>
+                  <button class="seat" type="button" data-id="E9" data-price="250000" title="Hàng E - Ghế 9 (250.000 ₫)">E9</button>
+                  <button class="seat" type="button" data-id="E10" data-price="250000" title="Hàng E - Ghế 10 (250.000 ₫)">E10</button>
+                </div>
+              </div>
+
+              <!-- Hàng F -->
+              <div class="seat-row">
+                <span class="row-label">F</span>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="F1" data-price="250000" title="Hàng F - Ghế 1 (250.000 ₫)">F1</button>
+                  <button class="seat" type="button" data-id="F2" data-price="250000" title="Hàng F - Ghế 2 (250.000 ₫)">F2</button>
+                  <button class="seat" type="button" data-id="F3" data-price="250000" title="Hàng F - Ghế 3 (250.000 ₫)">F3</button>
+                  <button class="seat" type="button" data-id="F4" data-price="250000" title="Hàng F - Ghế 4 (250.000 ₫)">F4</button>
+                  <button class="seat" type="button" data-id="F5" data-price="250000" title="Hàng F - Ghế 5 (250.000 ₫)">F5</button>
+                </div>
+                <div class="aisle-gap"></div>
+                <div class="seat-cluster">
+                  <button class="seat" type="button" data-id="F6" data-price="250000" title="Hàng F - Ghế 6 (250.000 ₫)">F6</button>
+                  <button class="seat" type="button" data-id="F7" data-price="250000" title="Hàng F - Ghế 7 (250.000 ₫)">F7</button>
+                  <button class="seat" type="button" data-id="F8" data-price="250000" title="Hàng F - Ghế 8 (250.000 ₫)">F8</button>
+                  <button class="seat" type="button" data-id="F9" data-price="250000" title="Hàng F - Ghế 9 (250.000 ₫)">F9</button>
+                  <button class="seat" type="button" data-id="F10" data-price="250000" title="Hàng F - Ghế 10 (250.000 ₫)">F10</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Cart & Checkout (Glassmorphism Card) -->
+      <aside class="cart-panel glass-panel" aria-label="Khung giỏ vé và thanh toán">
+        <!-- Cart Header -->
+        <div class="cart-header">
+          <div class="cart-title-wrap">
+            <div class="cart-icon">🎟️</div>
+            <div class="cart-title">Giỏ Vé Của Bạn</div>
+          </div>
+          <span id="selectedCountBadge" class="selected-count-badge">0 ghế</span>
+        </div>
+
+        <!-- Auth Fields (Xác thực người dùng) -->
+        <div class="auth-section">
+          <div class="auth-header-toggle">
+            <span>Tài Khoản Đặt Vé</span>
+            <span style="font-size: 11px; color: var(--neon-cyan);">Yêu Cầu T-25</span>
+          </div>
+          <div class="auth-fields" aria-label="Thông tin tài khoản">
+            <label>
+              Email Đăng Nhập
+              <input id="authEmail" type="email" autocomplete="username" placeholder="admin@example.com" value="admin@example.com" required />
+            </label>
+            <label>
+              Mật Khẩu
+              <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••" value="Admin@123456" required />
+            </label>
+          </div>
+          <div class="auth-quick-fill">
+            <button type="button" class="btn-auth-fill" data-email="admin@example.com" data-pass="Admin@123456">
+              Admin Demo
+            </button>
+            <button type="button" class="btn-auth-fill" data-email="organizer@example.com" data-pass="Organizer@123456">
+              Organizer Demo
+            </button>
+          </div>
+        </div>
+
+        <!-- Countdown Timer Box (T-24) -->
+        <div id="countdown" hidden role="timer" aria-live="polite"></div>
+
+        <!-- Selected Seats List (Task T-25 & T-26 UI) -->
+        <section id="selectionPanel" aria-live="polite">
+          <div class="section-label">
+            <h2>Ghế đã chọn</h2>
+            <span style="font-size: 11px; color: #64748b;">(Click '×' hoặc click trên sơ đồ để hủy)</span>
+          </div>
+
+          <!-- Danh sách thẻ ghế đã chọn -->
+          <ul id="selectedSeatList">
+            <!-- Được render động từ JavaScript -->
+          </ul>
+        </section>
+
+        <!-- Summary & Actions -->
+        <div class="cart-summary">
+          <div class="total-row">
+            <span class="total-label">Tổng tiền tạm tính:</span>
+            <span id="estimatedTotal">0 ₫</span>
+          </div>
+
+          <!-- Nút Giữ Chỗ (T-23) -->
+          <button id="holdBtn" type="button">
+            <span>⚡ Giữ Chỗ Ngay</span>
+          </button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- JavaScript App Logic -->
+    <script src="./app.js"></script>
+  </body>
+</html>

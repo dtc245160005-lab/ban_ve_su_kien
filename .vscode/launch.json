@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Start Backend Server",
+      "program": "${workspaceFolder}/task-t07/server.js",
+      "cwd": "${workspaceFolder}/task-t07",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Open Browser",
+      "url": "http://localhost:2006/register.html",
+      "webRoot": "${workspaceFolder}/task-t07/public"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "▷ Run Server & App",
+      "configurations": ["Start Backend Server", "Open Browser"]
+    }
+  ]
+}

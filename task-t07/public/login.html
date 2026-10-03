@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EventTicket - Đăng nhập</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <style>
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover,
+      input:-webkit-autofill:focus,
+      input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+        -webkit-text-fill-color: #0f172a !important;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+
+      .form-group-item {
+        margin-bottom: 10px !important;
+      }
+
+      .form-label-custom {
+        display: block;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #1e1b4b;
+        margin-bottom: 3px !important;
+      }
+
+      .custom-input-group {
+        display: flex;
+        align-items: center;
+        background-color: #ffffff;
+        border: 1.8px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0 12px;
+        height: 40px !important;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      }
+
+      .custom-input-group i,
+      .custom-input-group svg {
+        color: #64748b;
+        font-size: 14px;
+        margin-right: 10px;
+        transition: color 0.25s ease;
+        flex-shrink: 0;
+      }
+
+      .custom-input-group input {
+        width: 100%;
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+        font-size: 13.5px;
+        color: #0f172a;
+        font-weight: 500;
+        padding: 0;
+      }
+
+      .custom-input-group input::placeholder {
+        color: #94a3b8;
+      }
+
+      .custom-input-group:hover,
+      .custom-input-group:focus-within {
+        border-color: #6366f1;
+        transform: translateY(-2px);
+        box-shadow:
+          0 0 0 4px rgba(99, 102, 241, 0.18),
+          0 8px 20px -4px rgba(6, 182, 212, 0.25);
+      }
+
+      .custom-input-group:hover i,
+      .custom-input-group:focus-within i {
+        color: #6366f1;
+      }
+
+      .btn-submit-login {
+        width: 100%;
+        height: 42px;
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: #fff;
+        font-weight: 700;
+        font-size: 15px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-top: 12px;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .btn-submit-login:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+      }
+
+      #successMsgLogin {
+        display: none;
+        color: #10b981;
+        font-weight: 600;
+        font-size: 14px;
+        text-align: center;
+        margin-top: 10px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-glow glow-one"></div>
+    <div class="page-glow glow-two"></div>
+
+    <div class="auth-shell">
+      <div class="auth-panel">
+        <aside class="left-side">
+          <div class="orb orb-one"></div>
+          <div class="orb orb-two"></div>
+          <div class="sparkles" aria-hidden="true">
+            <span class="spark s1"></span>
+            <span class="spark s2"></span>
+            <span class="spark s3"></span>
+            <span class="spark s4"></span>
+            <span class="spark s5"></span>
+          </div>
+
+          <div class="promo-badge">VIP ACCESS</div>
+          <h2>Chào mừng quay lại</h2>
+          <p class="hero-description">
+            Truy cập nhanh vào hệ thống đặt vé, quản lý ghế và theo dõi giao dịch của bạn.
+          </p>
+
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon" aria-hidden="true">🎫</span>
+              <span>Đặt vé và giữ chỗ trong vài giây</span>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon" aria-hidden="true">📊</span>
+              <span>Quản lý lịch trình sự kiện tối ưu</span>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon" aria-hidden="true">🔒</span>
+              <span>Đảm bảo bảo mật và xác minh tài khoản</span>
+            </li>
+          </ul>
+
+          <div class="scene" aria-hidden="true">
+            <div class="radar-panel">
+              <div class="radar-ring ring-1"></div>
+              <div class="radar-ring ring-2"></div>
+              <div class="radar-ring ring-3"></div>
+              <div class="radar-dot"></div>
+              <div class="radar-check"><span>✓</span></div>
+            </div>
+
+            <div class="prism-panel">
+              <span class="prism prism-a"></span>
+              <span class="prism prism-b"></span>
+              <span class="prism prism-c"></span>
+            </div>
+          </div>
+        </aside>
+
+        <main class="auth-card">
+          <div class="logo-wrapper" style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px;">
+            <div style="width: 110px; height: 110px; border-radius: 50%; background: #ffffff; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">
+              <svg width="100" height="100" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="120" cy="120" r="115" stroke="#1B2B48" stroke-width="2.5" fill="none"/>
+                <defs>
+                  <linearGradient id="exactTGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#3B1261" />
+                    <stop offset="60%" stop-color="#255182" />
+                    <stop offset="100%" stop-color="#1E7B9A" />
+                  </linearGradient>
+                  <linearGradient id="exactChairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#311962" />
+                    <stop offset="100%" stop-color="#214A7A" />
+                  </linearGradient>
+                </defs>
+                <path d="M 38 45 H 102 V 68 H 63 V 82 H 92 V 104 H 63 V 122 H 102 V 145 H 38 V 45 Z" fill="#2B125B"/>
+                <path d="M 38 100 C 38 128, 62 145, 90 145 H 63 C 45 145, 38 130, 38 100 Z" fill="#2B125B"/>
+                <path d="M 112 118 C 104 110, 100 100, 100 90 C 100 78, 108 70, 118 70 C 127 70, 134 77, 134 86 C 134 98, 120 110, 106 122 L 95 132 C 90 136, 88 141, 94 145 C 100 148, 110 146, 120 138 L 132 145 C 120 152, 100 154, 90 146 C 82 140, 84 128, 92 120 L 112 102 C 108 96, 106 91, 106 86 C 106 80, 110 76, 116 76 C 122 76, 126 80, 126 86 C 126 92, 120 100, 112 108 Z" fill="#3B1261"/>
+                <path d="M 124 130 L 140 145 H 128 L 116 134 Z" fill="#3B1261"/>
+                <rect x="124" y="45" width="70" height="22" rx="2" fill="url(#exactTGrad)"/>
+                <circle cx="159" cy="56" r="8" fill="#FFFFFF"/>
+                <rect x="150" y="74" width="18" height="32" rx="5" fill="url(#exactChairGrad)"/>
+                <path d="M 142 98 H 148 V 110 H 144 C 142 110, 142 104, 142 98 Z" fill="url(#exactChairGrad)"/>
+                <path d="M 176 98 H 170 V 110 H 174 C 176 110, 176 104, 176 98 Z" fill="url(#exactChairGrad)"/>
+                <rect x="142" y="108" width="34" height="4" rx="1" fill="url(#exactChairGrad)"/>
+                <path d="M 155 112 V 120 H 163 V 112" stroke="url(#exactChairGrad)" stroke-width="3" fill="none"/>
+                <path d="M 148 120 H 170 V 124 H 148 Z" fill="url(#exactChairGrad)"/>
+                <text x="120" y="182" text-anchor="middle" font-family="'Arial', 'Helvetica', sans-serif" font-weight="900" font-size="19" letter-spacing="1" fill="#1B2B48">EVENTTICKET</text>
+              </svg>
+            </div>
+          </div>
+
+          <h1>Đăng nhập</h1>
+
+          <form id="loginForm" class="auth-form" novalidate>
+            <div class="form-group-item">
+              <label class="form-label-custom" for="loginEmail">Email</label>
+              <div class="custom-input-group">
+                <i class="fa-solid fa-envelope"></i>
+                <input
+                  id="loginEmail"
+                  name="email"
+                  type="email"
+                  placeholder="example@email.com"
+                  required
+                  minlength="5"
+                  maxlength="100"
+                />
+              </div>
+            </div>
+
+            <div class="form-group-item">
+              <label class="form-label-custom" for="loginPassword">Mật khẩu</label>
+              <div class="custom-input-group password-wrap">
+                <i class="fa-solid fa-lock"></i>
+                <input
+                  id="loginPassword"
+                  name="password"
+                  type="password"
+                  placeholder="Nhập mật khẩu của bạn"
+                  required
+                  minlength="8"
+                  maxlength="64"
+                />
+                <i
+                  class="fa-solid fa-eye toggle-password"
+                  id="togglePasswordLogin"
+                  title="Hiện/Ẩn mật khẩu"
+                  aria-label="Hiện mật khẩu"
+                ></i>
+              </div>
+            </div>
+
+            <div id="errorBoxLogin" class="message error" role="alert" aria-live="polite" hidden></div>
+
+            <button type="submit" class="btn-submit-login">Đăng nhập</button>
+
+            <div id="successMsgLogin" role="alert" aria-live="polite">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>Đăng nhập thành công !</span>
+            </div>
+          </form>
+
+          <p class="footer-text">Chưa có tài khoản? <a href="/register.html">Đăng ký ngay</a></p>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      const loginForm = document.getElementById('loginForm');
+      const passwordInput = document.getElementById('loginPassword');
+      const togglePasswordButton = document.getElementById('togglePasswordLogin');
+      const successMsgLogin = document.getElementById('successMsgLogin');
+      const errorBoxLogin = document.getElementById('errorBoxLogin');
+
+      function showLoginError(message) {
+        errorBoxLogin.textContent = message;
+        errorBoxLogin.hidden = false;
+        successMsgLogin.style.display = 'none';
+      }
+
+      function showLoginSuccess(message) {
+        successMsgLogin.innerHTML = `
+          <i class="fa-solid fa-circle-check"></i>
+          <span>${message}</span>
+        `;
+        successMsgLogin.style.display = 'flex';
+        errorBoxLogin.hidden = true;
+      }
+
+      if (togglePasswordButton && passwordInput) {
+        togglePasswordButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          const isPassword = passwordInput.getAttribute('type') === 'password';
+          passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+          this.classList.toggle('fa-eye', !isPassword);
+          this.classList.toggle('fa-eye-slash', isPassword);
+        });
+      }
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+
+        if (!email || !password) {
+          showLoginError('Vui lòng nhập đầy đủ email và mật khẩu.');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(text || 'Máy chủ trả về phản hồi không hợp lệ.');
+          }
+
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.message || 'Đăng nhập thất bại.');
+          }
+
+          showLoginSuccess(result.message || 'Đăng nhập thành công !');
+        } catch (error) {
+          showLoginError(error.message || 'Đăng nhập không thành công.');
+        }
+      });
+    </script>
+  </body>
+</html>
