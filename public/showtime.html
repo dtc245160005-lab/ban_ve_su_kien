@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chi tiết suất diễn - Vé Sự Kiện</title>
+    <meta name="description" content="Chi tiết suất diễn" id="metaDescription" />
+    <meta property="og:title" content="Chi tiết suất diễn" id="ogTitle" />
+    <meta property="og:description" content="Chi tiết suất diễn" id="ogDescription" />
+    <meta property="og:type" content="website" id="ogType" />
+    <meta property="og:url" content="" id="ogUrl" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header id="siteHeader"></header>
+
+      <div style="margin-bottom: 16px;">
+        <a href="/home.html" class="muted" style="text-decoration: none;">&larr; Quay lại danh sách suất diễn</a>
+      </div>
+
+      <div id="loadingIndicator" style="text-align: center; padding: 40px;">
+        <p class="muted">Đang tải thông tin suất diễn...</p>
+      </div>
+
+      <div id="errorMessage" class="message error" style="display: none; margin-bottom: 20px;"></div>
+
+      <article id="showtimeDetail" class="card" style="display: none;">
+        <h1 id="showtimeTitle" style="margin-top: 0; font-size: 26px;"></h1>
+
+        <div style="display: flex; flex-direction: column; gap: 14px; margin: 20px 0;">
+          <div>
+            <strong style="color: var(--muted); font-size: 14px;">Thời gian biểu diễn:</strong>
+            <p id="showtimeStartsAt" style="margin: 4px 0 0; font-size: 16px; font-weight: bold; color: var(--primary);"></p>
+          </div>
+
+          <div>
+            <strong style="color: var(--muted); font-size: 14px;">Địa điểm:</strong>
+            <p id="showtimeVenue" style="margin: 4px 0 0; font-size: 16px;"></p>
+          </div>
+
+          <div>
+            <strong style="color: var(--muted); font-size: 14px;">Phòng / Khán phòng:</strong>
+            <p id="showtimeRoom" style="margin: 4px 0 0; font-size: 16px;"></p>
+          </div>
+
+          <div>
+            <strong style="color: var(--muted); font-size: 14px;">Khoảng giá:</strong>
+            <p id="showtimePrice" style="margin: 4px 0 0; font-size: 16px;"></p>
+          </div>
+
+          <div>
+            <strong style="color: var(--muted); font-size: 14px;">Mô tả sự kiện:</strong>
+            <p id="showtimeDescription" style="margin: 4px 0 0; line-height: 1.6; white-space: pre-line;"></p>
+          </div>
+        </div>
+
+        <div id="notOnSaleNotice" class="message warning" style="display: none; margin-top: 20px;">
+          Suất diễn này hiện không mở bán
+        </div>
+
+        <div id="actionContainer" style="margin-top: 24px;">
+          <button id="chooseSeatBtn" type="button" class="primary-btn" style="max-width: 200px;">
+            Chọn ghế
+          </button>
+        </div>
+      </article>
+    </main>
+
+    <script src="./api.js"></script>
+    <script src="./site-header.js"></script>
+    <script src="./showtime.js"></script>
+  </body>
+</html>
