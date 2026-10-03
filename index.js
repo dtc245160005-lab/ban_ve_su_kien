@@ -115,6 +115,90 @@ require('dotenv').config();
       }
     });
 
+    // API 4: Tạo đơn hàng từ các ghế đang giữ (T-37)
+    app.post('/api/orders', async (req, res) => {
+      const { user_id, event_id } = req.body;
+      if (!user_id || !event_id) {
+        return res.status(400).json({ success: false, message: 'Thiếu user_id hoặc event_id' });
+      }
+
+      try {
+        const result = await db.transaction(async (trx) => {
+          // Khóa giao dịch cho user này để chống race condition khi bấm đúp
+          await trx.raw('SELECT pg_advisory_xact_lock(?)', [user_id]);
+
+          // Kiểm tra xem đã có đơn chờ chưa
+          const existingOrder = await trx('orders')
+            .where({ user_id, event_id, status: 'chờ' })
+            .first();
+
+          if (existingOrder) {
+            const items = await trx('order_items').where({ order_id: existingOrder.id });
+            return { is_existing: true, order: existingOrder, items };
+          }
+
+          const now = new Date();
+
+          // Đọc giữ chỗ còn hiệu lực
+          const activeHolds = await trx('seat_holds')
+            .where('user_id', user_id)
+            .andWhere('expires_at', '>', now);
+
+          if (activeHolds.length === 0) {
+            // Giữ chỗ hết hạn hoặc không có
+            const err = new Error('Giữ chỗ đã hết hạn hoặc không tồn tại');
+            err.code = 409;
+            throw err;
+          }
+
+          // Lấy thông tin sự kiện để lấy giá
+          const event = await trx('events').where({ id: event_id }).first();
+          if (!event) {
+            throw new Error('Không tìm thấy sự kiện');
+          }
+          
+          const price = event.price;
+          const total_amount = price * activeHolds.length;
+
+          // Gia hạn giữ chỗ thêm 15 phút cho thời hạn thanh toán
+          const expiresAt = new Date(now.getTime() + 15 * 60000);
+          
+          await trx('seat_holds')
+            .where('user_id', user_id)
+            .update({ expires_at: expiresAt });
+
+          // Tạo đơn hàng
+          const [order] = await trx('orders')
+            .insert({
+              user_id,
+              event_id,
+              status: 'chờ',
+              total_amount,
+              expires_at: expiresAt
+            })
+            .returning('*');
+
+          // Tạo order items
+          const orderItemsData = activeHolds.map(hold => ({
+            order_id: order.id,
+            seat_id: hold.seat_id,
+            price_at_booking: price
+          }));
+
+          const items = await trx('order_items').insert(orderItemsData).returning('*');
+
+          return { is_existing: false, order, items };
+        });
+
+        res.status(200).json({ success: true, data: result });
+      } catch (err) {
+        if (err.code === 409) {
+          return res.status(409).json({ success: false, message: err.message, lost_seats: [] });
+        }
+        res.status(500).json({ success: false, message: err.message });
+      }
+    });
+
     app.listen(port, async () => {
       console.log(`Server API đang chạy tại http://localhost:${port}`);
       try {
